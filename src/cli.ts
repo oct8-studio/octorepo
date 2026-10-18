@@ -1,10 +1,12 @@
 import { readFile } from 'node:fs/promises'
 import { basename, relative, resolve } from 'node:path'
+import { select, text } from '@clack/prompts'
 import { Command } from 'commander'
+import { runAddApp } from './commands/add-app'
 import { runCreate } from './commands/create'
 import { CLI_NAME, CLI_VERSION } from './meta'
 import { CliError } from './model/errors'
-import { type AppSpec, parseStackConfig, type StackConfig } from './model/stack'
+import { type AppKind, type AppSpec, parseStackConfig, type StackConfig } from './model/stack'
 import { defaultRegistry } from './plugins/registry'
 
 interface CreateFlags {
@@ -90,6 +92,69 @@ async function create(dir: string | undefined, flags: CreateFlags): Promise<void
   for (const cmd of [`cd ${cd}`, ...result.manual, 'pnpm dev']) console.log(`  ${cmd}`)
 }
 
+interface AddAppFlags {
+  uses?: string
+  apiStyle?: string
+  install: boolean
+  json?: boolean
+}
+
+function ask<T>(value: T): Exclude<T, symbol> {
+  if (typeof value === 'symbol') throw new CliError('Cancelled')
+  return value as Exclude<T, symbol>
+}
+
+async function addApp(
+  kindArg: string | undefined,
+  nameArg: string | undefined,
+  frameworkArg: string | undefined,
+  flags: AddAppFlags,
+): Promise<void> {
+  const reg = defaultRegistry()
+  const interactive = Boolean(process.stdin.isTTY) && !flags.json
+  if ((!kindArg || !nameArg || !frameworkArg) && !interactive) {
+    throw new CliError('Usage: add app <kind> <name> <framework>')
+  }
+  const kind = (kindArg ??
+    ask(
+      await select<AppKind>({
+        message: 'App kind',
+        options: [{ value: 'backend' }, { value: 'frontend' }],
+      }),
+    )) as AppKind
+  if (kind !== 'frontend' && kind !== 'backend') {
+    throw new CliError(`Invalid kind "${kind}". Expected frontend or backend`)
+  }
+  const name = nameArg ?? ask(await text({ message: 'App name', placeholder: 'api' }))
+  const framework =
+    frameworkArg ??
+    ask(
+      await select<string>({
+        message: 'Framework',
+        options: reg.frameworksOf(kind).map((p) => ({ value: p.id, label: p.label })),
+      }),
+    )
+  const app: AppSpec = { name, kind, framework }
+  if (flags.apiStyle) app.apiStyle = flags.apiStyle
+  let uses = flags.uses
+  if (kind === 'frontend' && uses === undefined && interactive) {
+    uses = ask(await text({ message: 'Backends to use (comma-separated)', defaultValue: '' }))
+  }
+  if (uses !== undefined) app.uses = uses.split(',').filter(Boolean)
+  const result = await runAddApp(
+    { cwd: process.cwd(), app, json: Boolean(flags.json), install: flags.install },
+    reg,
+  )
+  if (flags.json) {
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+    return
+  }
+  for (const f of result.fixes) console.log(`fix: ${f.message}`)
+  for (const w of result.warnings) console.log(`warning: ${w.message}`)
+  console.log(`\nAdded ${kind} "${name}" (${result.written.length} files written)`)
+  for (const cmd of result.manual ?? []) console.log(`  ${cmd}`)
+}
+
 const program = new Command()
 program.name(CLI_NAME).version(CLI_VERSION)
 program
@@ -105,6 +170,17 @@ program
   .option('--json', 'print machine-readable result only')
   .option('--yes', 'never prompt')
   .action(create)
+
+program
+  .command('add')
+  .description('Add to an existing monorepo')
+  .command('app [kind] [name] [framework]')
+  .description('Add an app: add app <kind> <name> <framework>')
+  .option('--uses <names>', 'comma-separated backends a frontend uses')
+  .option('--api-style <style>', 'backend API style (e.g. rest)')
+  .option('--no-install', 'skip pnpm install')
+  .option('--json', 'print machine-readable result only')
+  .action(addApp)
 
 try {
   await program.parseAsync()
