@@ -2,7 +2,7 @@
 
 Date: 2026-10-17
 Status: Draft for approval
-Working name: `<name>` (TBD — placeholder throughout)
+Name: `octorepo` (an oct8 studio project)
 
 ## 1. Intent and the why
 
@@ -106,7 +106,7 @@ enforces this.
 ## 5. How it works
 
 ### 5.1 Create flow (interactive)
-`npx <name> create` (or `npm create <name>`):
+`npx octorepo create` (or `npm create octorepo`):
 
 1. Project name, target directory.
 2. Monorepo tool: Nx or Turborepo.
@@ -172,7 +172,7 @@ possible, e.g. `packages/<backend>-client`).
   offered as a job-queue add-on, not as the request/response transport.
 
 ### 5.6 Manifest
-A file in the generated repo (e.g. `<name>.json`) recording the project's apps,
+A file in the generated repo (`.octorepo.json`) recording the project's apps,
 frameworks, API styles, frontend→backend links, services, ORM, transport, and tool
 version. It is the source of truth for `add` commands and validation. It carries a
 **`schemaVersion` from day one**; if a repo's schema is one the CLI can't handle,
@@ -262,4 +262,4 @@ validation rules, `add app`, non-interactive mode, CI matrix green.
 - Gateway implementation details (likely a custom Nest/Fastify gateway in v1).
 - How CI matrix is sharded/cached.
 - Default ports, env var naming conventions.
-- Final CLI name (author's decision; placeholder until then).
+- (CLI name decided: octorepo.)
