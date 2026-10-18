@@ -1,7 +1,30 @@
 {
   "name": "octorepo",
   "version": "0.0.0",
-  "description": "Scaffold Node monorepos (Nx or Turborepo)",
+  "description": "Scaffold multi-app Node/TypeScript monorepos (Nx or Turborepo) with frontends, backends and Docker Compose",
+  "keywords": [
+    "monorepo",
+    "scaffold",
+    "cli",
+    "turborepo",
+    "nx",
+    "pnpm",
+    "nextjs",
+    "nestjs",
+    "express",
+    "vite",
+    "docker-compose",
+    "typescript",
+    "generator"
+  ],
+  "homepage": "https://github.com/oct8-studio/octorepo#readme",
+  "bugs": {
+    "url": "https://github.com/oct8-studio/octorepo/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oct8-studio/octorepo.git"
+  },
   "type": "module",
   "license": "MIT",
   "packageManager": "pnpm@11.12.0",
