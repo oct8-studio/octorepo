@@ -12,9 +12,14 @@ describe('turbo plugin', () => {
   const pkg = JSON.parse(tree['package.json'])
   it('writes turbo.json tasks', () => {
     expect(turbo.tasks.build.dependsOn).toEqual(['^build'])
-    expect(turbo.tasks.build.outputs).toEqual(['dist/**', '.next/**', '!.next/cache/**'])
-    expect(turbo.tasks.typecheck.dependsOn).toEqual(['^build'])
-    expect(turbo.tasks.test.dependsOn).toEqual(['^build'])
+    expect(turbo.tasks.build.outputs).toEqual([
+      'dist/**',
+      'openapi.json',
+      '.next/**',
+      '!.next/cache/**',
+    ])
+    expect(turbo.tasks.typecheck.dependsOn).toEqual(['build'])
+    expect(turbo.tasks.test.dependsOn).toEqual(['build'])
     expect(turbo.tasks.dev).toEqual({ cache: false, persistent: true })
     expect(turbo.tasks.lint).toBeDefined()
   })
@@ -36,11 +41,13 @@ describe('nx plugin', () => {
     expect(nx.targetDefaults.build.dependsOn).toEqual(['^build'])
     expect(nx.targetDefaults.build.outputs).toEqual([
       '{projectRoot}/dist',
+      '{projectRoot}/openapi.json',
       '{projectRoot}/.next',
       '!{projectRoot}/.next/cache',
     ])
     expect(nx.targetDefaults.build.cache).toBe(true)
-    expect(nx.targetDefaults.typecheck.dependsOn).toEqual(['^build'])
+    expect(nx.targetDefaults.typecheck.dependsOn).toEqual(['build'])
+    expect(nx.targetDefaults.test.dependsOn).toEqual(['build'])
     expect(nx.targetDefaults.dev.cache).toBe(false)
     expect(nx.plugins).toBeUndefined()
   })

@@ -23,11 +23,16 @@ export const nxPlugin: MonorepoPlugin & { ciBuildCommand: string } = {
         targetDefaults: {
           build: {
             dependsOn: ['^build'],
-            outputs: ['{projectRoot}/dist', '{projectRoot}/.next', '!{projectRoot}/.next/cache'],
+            outputs: [
+              '{projectRoot}/dist',
+              '{projectRoot}/openapi.json',
+              '{projectRoot}/.next',
+              '!{projectRoot}/.next/cache',
+            ],
             cache: true,
           },
-          typecheck: { dependsOn: ['^build'], cache: true },
-          test: { dependsOn: ['^build'], cache: true },
+          typecheck: { dependsOn: ['build'], cache: true },
+          test: { dependsOn: ['build'], cache: true },
           lint: { cache: true },
           dev: { cache: false },
         },

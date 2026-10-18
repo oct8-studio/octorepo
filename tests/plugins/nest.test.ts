@@ -34,6 +34,7 @@ describe('nestPlugin', () => {
     expect(pkg.name).toBe('@acme/core')
     expect(pkg.files).toEqual(['dist', 'openapi.json'])
     expect(pkg.scripts.build).toContain('nest build')
+    expect(pkg.scripts.test).toBe('vitest run')
     expect(pkg.scripts.build).toContain('node dist/write-openapi.js')
     expect(pkg.dependencies['@acme/types']).toBe('workspace:*')
     expect(pkg.dependencies['@nestjs/core']).toBe(VERSIONS['@nestjs/core'])

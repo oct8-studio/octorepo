@@ -45,4 +45,21 @@ describe('{{name}}', () => {
     const bad = await fetch(`${base}/hello`, { headers: { Origin: 'http://evil.test' } })
     expect(bad.headers.get('access-control-allow-origin')).toBeNull()
   })
+
+  it('sets Vary: Origin for allowed and disallowed origins', async () => {
+    const ok = await fetch(`${base}/hello`, { headers: { Origin: 'http://localhost:3000' } })
+    expect(ok.headers.get('vary')).toContain('Origin')
+    const bad = await fetch(`${base}/hello`, { headers: { Origin: 'http://evil.test' } })
+    expect(bad.headers.get('vary')).toContain('Origin')
+  })
+
+  it('answers allowed preflight with 204 and CORS headers', async () => {
+    const res = await fetch(`${base}/hello`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'http://localhost:3000', 'Access-Control-Request-Method': 'GET' },
+    })
+    expect(res.status).toBe(204)
+    expect(res.headers.get('access-control-allow-origin')).toBe('http://localhost:3000')
+    expect(res.headers.get('vary')).toContain('Origin')
+  })
 })

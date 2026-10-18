@@ -8,4 +8,7 @@ async function bootstrap(): Promise<void> {
   console.log(`{{name}} listening on http://localhost:${port}`)
 }
 
-void bootstrap()
+bootstrap().catch((e) => {
+  console.error(e)
+  process.exit(1)
+})

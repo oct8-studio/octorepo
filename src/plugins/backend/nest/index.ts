@@ -25,7 +25,7 @@ function generate(ctx: AppContext): FileTree {
       start: 'node dist/main.js',
       lint: 'biome check .',
       typecheck: 'tsc --noEmit',
-      test: 'nest build && vitest run',
+      test: 'vitest run',
     },
     dependencies: {
       [`${scope}/types`]: 'workspace:*',

@@ -8,4 +8,7 @@ async function main(): Promise<void> {
   console.log(`wrote ${out}`)
 }
 
-void main()
+main().catch((e) => {
+  console.error(e)
+  process.exit(1)
+})

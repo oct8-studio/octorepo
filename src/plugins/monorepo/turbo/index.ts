@@ -20,9 +20,12 @@ export const turboPlugin: MonorepoPlugin & { ciBuildCommand: string } = {
       'turbo.json': json({
         $schema: 'https://turborepo.dev/schema.json',
         tasks: {
-          build: { dependsOn: ['^build'], outputs: ['dist/**', '.next/**', '!.next/cache/**'] },
-          typecheck: { dependsOn: ['^build'] },
-          test: { dependsOn: ['^build'] },
+          build: {
+            dependsOn: ['^build'],
+            outputs: ['dist/**', 'openapi.json', '.next/**', '!.next/cache/**'],
+          },
+          typecheck: { dependsOn: ['build'] },
+          test: { dependsOn: ['build'] },
           lint: {},
           dev: { cache: false, persistent: true },
         },
