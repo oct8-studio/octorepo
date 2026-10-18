@@ -1,0 +1,46 @@
+import { describe, expect, it } from 'vitest'
+import { workspaceFiles } from '../../src/engine/workspace'
+import type { Manifest } from '../../src/model/stack'
+import { parseManifest } from '../../src/model/stack'
+import type { ProjectContext } from '../../src/plugins/types'
+import { VERSIONS } from '../../src/versions'
+
+const stack = {
+  name: 'acme',
+  monorepoTool: 'turbo' as const,
+  packageManager: 'pnpm' as const,
+  apps: [{ name: 'api', kind: 'backend' as const, framework: 'express', port: 4000 }],
+  services: [],
+}
+const ctx: ProjectContext = { stack, scope: '@acme', versions: VERSIONS }
+const manifest: Manifest = { ...stack, schemaVersion: 1, cliVersion: '0.1.0' }
+
+describe('workspaceFiles', () => {
+  const tree = workspaceFiles(ctx, manifest)
+  it('types package is dual format', () => {
+    const pkg = JSON.parse(tree['packages/types/package.json'] as string)
+    expect(pkg.name).toBe('@acme/types')
+    expect(pkg.exports['.']).toHaveProperty('import')
+    expect(pkg.exports['.']).toHaveProperty('require')
+    expect(tree['packages/types/src/index.ts']).toContain('HelloResponseSchema')
+  })
+  it('config package exports tsconfigs', () => {
+    const pkg = JSON.parse(tree['packages/config/package.json'] as string)
+    expect(pkg.name).toBe('@acme/config')
+    expect(Object.keys(pkg.exports)).toContain('./tsconfig.react.json')
+  })
+  it('manifest round-trips', () => {
+    expect(parseManifest(JSON.parse(tree['.octorepo.json'] as string)).name).toBe('acme')
+  })
+  it('root files', () => {
+    expect(tree['pnpm-workspace.yaml']).toContain('apps/*')
+    expect(tree['.nvmrc']).toBe('24\n')
+    const root = JSON.parse(tree['package.json'] as string)
+    expect(root.private).toBe(true)
+    expect(root.packageManager).toMatch(/^pnpm@/)
+    expect(root.scripts).toBeUndefined()
+    expect(tree['.github/workflows/ci.yml']).toContain('pnpm install')
+    expect(tree['README.md']).toContain('4000')
+    expect(JSON.parse(tree['biome.json'] as string).files.includes).toContain('!**/openapi.json')
+  })
+})
