@@ -5,7 +5,7 @@ import { Command } from 'commander'
 import { runAddApp } from './commands/add-app'
 import { runCreate } from './commands/create'
 import { CLI_NAME, CLI_VERSION } from './meta'
-import { CliError } from './model/errors'
+import { CliError, formatError } from './model/errors'
 import { type AppKind, type AppSpec, parseStackConfig, type StackConfig } from './model/stack'
 import { defaultRegistry } from './plugins/registry'
 
@@ -185,7 +185,7 @@ program
 try {
   await program.parseAsync()
 } catch (e) {
-  if (!(e instanceof CliError)) throw e
-  process.stderr.write(`${e.message}\n`)
-  process.exitCode = e.exitCode
+  const { text, exitCode } = formatError(e, process.env.OCTOREPO_DEBUG === '1')
+  process.stderr.write(`${text}\n`)
+  process.exitCode = exitCode
 }
