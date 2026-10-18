@@ -3,8 +3,6 @@ import type { Manifest } from '../model/stack'
 import type { ProjectContext } from '../plugins/types'
 import { type FileTree, json } from './tree'
 
-const PNPM_VERSION = '11.12.0'
-
 const GITIGNORE = `node_modules
 dist
 .next
@@ -49,6 +47,9 @@ function readme(manifest: Manifest): string {
   const rows = manifest.apps.map(
     (a) => `| ${a.name} | ${a.kind} | ${a.framework} | ${a.port ?? '-'} |`,
   )
+  const devCommands = manifest.apps
+    .map((a) => `pnpm --filter @${manifest.name}/${a.name} dev`)
+    .join('\n')
   return `# ${manifest.name}
 
 Generated with octorepo (${manifest.monorepoTool}, pnpm workspace).
@@ -64,6 +65,7 @@ ${rows.join('\n')}
 \`\`\`sh
 pnpm install
 pnpm dev        # run all apps
+${devCommands}
 pnpm build
 pnpm lint
 pnpm typecheck
@@ -104,7 +106,7 @@ export function workspaceFiles(ctx: ProjectContext, manifest: Manifest): FileTre
     'package.json': json({
       name: ctx.stack.name,
       private: true,
-      packageManager: `pnpm@${PNPM_VERSION}`,
+      packageManager: `pnpm@${v.pnpm}`,
       engines: { node: '>=24' },
       devDependencies: {
         typescript: v.typescript,
@@ -114,6 +116,7 @@ export function workspaceFiles(ctx: ProjectContext, manifest: Manifest): FileTre
     'pnpm-workspace.yaml': stringify({ packages: ['apps/*', 'packages/*'] }),
     '.gitignore': GITIGNORE,
     '.nvmrc': '24\n',
+    '.dockerignore': 'node_modules\n**/node_modules\n**/dist\n**/.next\n.git\n.turbo\n.nx\n',
     'biome.json': json({
       $schema: `https://biomejs.dev/schemas/${v['@biomejs/biome']}/schema.json`,
       files: {
@@ -176,6 +179,7 @@ export function workspaceFiles(ctx: ProjectContext, manifest: Manifest): FileTre
 export default defineConfig({
   entry: ['src/index.ts'],
   format: ['esm', 'cjs'],
+  fixedExtension: false,
   dts: true,
   clean: true,
 })
