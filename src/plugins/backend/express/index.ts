@@ -17,11 +17,12 @@ function generate(ctx: AppContext): FileTree {
     version: '0.0.0',
     private: true,
     type: 'module',
+    files: ['dist', 'openapi.json'],
     scripts: {
       dev: 'tsx watch src/main.ts',
       build: 'tsx scripts/write-openapi.ts && tsc -p tsconfig.build.json',
       start: 'node dist/main.js',
-      lint: 'biome check .',
+      lint: 'biome check src scripts',
       typecheck: 'tsc --noEmit',
       test: 'vitest run',
     },

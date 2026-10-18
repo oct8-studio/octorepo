@@ -36,6 +36,27 @@ describe('{{name}}', () => {
     expect(bad.headers.get('access-control-allow-origin')).toBeNull()
   })
 
+  it('answers allowed preflight with 204 and CORS headers', async () => {
+    const res = await fetch(`${base}/hello`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'http://localhost:3000', 'Access-Control-Request-Headers': 'x-test' },
+    })
+    expect(res.status).toBe(204)
+    expect(res.headers.get('access-control-allow-origin')).toBe('http://localhost:3000')
+    expect(res.headers.get('access-control-allow-headers')).toBe('x-test')
+    expect(res.headers.get('vary')).toContain('Origin')
+  })
+
+  it('answers disallowed preflight without CORS headers but with Vary', async () => {
+    const res = await fetch(`${base}/hello`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'http://evil.test' },
+    })
+    expect(res.status).toBe(204)
+    expect(res.headers.get('access-control-allow-origin')).toBeNull()
+    expect(res.headers.get('vary')).toContain('Origin')
+  })
+
   it('documents its routes in OpenAPI', () => {
     expect(Object.keys(buildOpenApiDocument().paths ?? {})).toEqual(['/health', '/hello'])
   })

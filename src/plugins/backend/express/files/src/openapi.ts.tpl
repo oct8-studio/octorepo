@@ -1,5 +1,5 @@
-import { OpenApiGeneratorV31, OpenAPIRegistry } from '@asteasolutions/zod-to-openapi'
 import { HelloResponseSchema } from '{{scope}}/types'
+import { OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi'
 import { z } from 'zod'
 
 export function buildOpenApiDocument() {
