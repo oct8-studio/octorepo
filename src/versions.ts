@@ -30,4 +30,7 @@ export const VERSIONS: Readonly<Record<string, string>> = {
   'openapi-fetch': '0.17.0',
   tsx: '4.23.15',
   '@types/node': '26.6.5',
+  jsdom: '30.1.3',
+  '@testing-library/react': '16.3.3',
+  '@testing-library/dom': '10.4.2',
 }
