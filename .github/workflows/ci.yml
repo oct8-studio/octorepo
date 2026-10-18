@@ -1,0 +1,70 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+  NX_DAEMON: 'false'
+  NX_NO_CLOUD: 'true'
+  TURBO_TELEMETRY_DISABLED: '1'
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm vitest run
+
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      combos: ${{ steps.list.outputs.combos }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - id: list
+        run: echo "combos=$(pnpm --silent tsx scripts/combos.ts matrix)" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    needs: [unit, matrix]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        combo: ${{ fromJSON(needs.matrix.outputs.combos) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tsx scripts/e2e.ts ${{ matrix.combo }}
+
+  fixture:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tsx scripts/e2e.ts --fixture fixtures/full.json --compose

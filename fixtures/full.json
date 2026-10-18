@@ -1,0 +1,11 @@
+{
+  "name": "full",
+  "monorepoTool": "turbo",
+  "apps": [
+    { "name": "site", "kind": "frontend", "framework": "next", "uses": ["api", "core"] },
+    { "name": "admin", "kind": "frontend", "framework": "react-vite", "uses": ["core"] },
+    { "name": "api", "kind": "backend", "framework": "express" },
+    { "name": "core", "kind": "backend", "framework": "nest" }
+  ],
+  "services": ["postgres", "redis"]
+}
