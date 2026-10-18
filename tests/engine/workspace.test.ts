@@ -20,8 +20,18 @@ describe('workspaceFiles', () => {
   it('types package is dual format', () => {
     const pkg = JSON.parse(tree['packages/types/package.json'] as string)
     expect(pkg.name).toBe('@acme/types')
-    expect(pkg.exports['.']).toHaveProperty('import')
-    expect(pkg.exports['.']).toHaveProperty('require')
+    expect(pkg.exports).toEqual({
+      '.': {
+        import: { types: './dist/index.d.ts', default: './dist/index.js' },
+        require: { types: './dist/index.d.cts', default: './dist/index.cjs' },
+      },
+    })
+    expect([pkg.main, pkg.module, pkg.types]).toEqual([
+      './dist/index.cjs',
+      './dist/index.js',
+      './dist/index.d.ts',
+    ])
+    expect(tree['packages/types/tsdown.config.ts']).toContain('fixedExtension: false')
     expect(tree['packages/types/src/index.ts']).toContain('HelloResponseSchema')
   })
   it('config package exports tsconfigs', () => {
@@ -35,6 +45,8 @@ describe('workspaceFiles', () => {
   it('root files', () => {
     expect(tree['pnpm-workspace.yaml']).toContain('apps/*')
     expect(tree['.nvmrc']).toBe('24\n')
+    expect(tree['.dockerignore']).toContain('**/node_modules')
+    expect(tree['README.md']).toContain('pnpm --filter @acme/api dev')
     const root = JSON.parse(tree['package.json'] as string)
     expect(root.private).toBe(true)
     expect(root.packageManager).toMatch(/^pnpm@/)
