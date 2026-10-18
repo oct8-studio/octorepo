@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -106,5 +106,61 @@ describe('runAddApp', () => {
     expect(err).toBeInstanceOf(CliError)
     expect(err.message).toContain('duplicate')
     expect(await list(root)).toEqual(before)
+  })
+
+  it('refuses when apps/<name> already exists on disk', async () => {
+    await mkdir(join(root, 'apps/billing/src'), { recursive: true })
+    await writeFile(join(root, 'apps/billing/src/app.ts'), 'USER')
+    const before = await list(root)
+    const app = { name: 'billing', kind: 'backend' as const, framework: 'express' }
+    await expect(runAddApp({ cwd: root, json: true, app }, reg)).rejects.toBeInstanceOf(CliError)
+    expect(await list(root)).toEqual(before)
+    expect(await read(root, 'apps/billing/src/app.ts')).toBe('USER')
+  })
+
+  it('refuses invalid JSON in a tool-owned file and writes nothing', async () => {
+    const turbo = await read(root, 'turbo.json')
+    await writeFile(join(root, 'turbo.json'), `// note\n${turbo}`)
+    const before = await list(root)
+    const app = { name: 'billing', kind: 'backend' as const, framework: 'express' }
+    const err = await runAddApp({ cwd: root, json: true, app }, reg).catch((e) => e)
+    expect(err).toBeInstanceOf(CliError)
+    expect(err.message).toContain('turbo.json')
+    expect(await list(root)).toEqual(before)
+    expect(await read(root, 'turbo.json')).toBe(`// note\n${turbo}`)
+  })
+
+  it('keeps user-changed values and adds missing generated keys', async () => {
+    const pkg = JSON.parse(await read(root, 'package.json'))
+    pkg.scripts.build = 'echo USER'
+    const dep = Object.keys(pkg.devDependencies)[0] as string
+    pkg.devDependencies[dep] = '0.0.1-user'
+    delete pkg.scripts.lint
+    await writeFile(join(root, 'package.json'), JSON.stringify(pkg))
+    await runAddApp(
+      { cwd: root, json: true, app: { name: 'billing', kind: 'backend', framework: 'express' } },
+      reg,
+    )
+    const after = JSON.parse(await read(root, 'package.json'))
+    expect(after.scripts.build).toBe('echo USER')
+    expect(after.devDependencies[dep]).toBe('0.0.1-user')
+    expect(after.scripts.lint).toBeDefined()
+  })
+
+  it('creates packages/ui-react when the first React frontend is added', async () => {
+    const m = JSON.parse(await read(root, '.octorepo.json'))
+    // simulate a backend-only repo
+    m.apps = m.apps.filter((a: { kind: string }) => a.kind === 'backend')
+    await writeFile(join(root, '.octorepo.json'), JSON.stringify(m))
+    await rm(join(root, 'packages/ui-react'), { recursive: true })
+    await runAddApp(
+      {
+        cwd: root,
+        json: true,
+        app: { name: 'admin', kind: 'frontend', framework: 'react-vite', uses: ['api'] },
+      },
+      reg,
+    )
+    expect(existsSync(join(root, 'packages/ui-react/package.json'))).toBe(true)
   })
 })

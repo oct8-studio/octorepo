@@ -87,11 +87,14 @@ async function mergeWithDisk(root: string, path: string, content: string): Promi
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') return content
     throw e
   }
+  let parsed: unknown
   try {
-    return json(mergeJson(JSON.parse(disk), JSON.parse(content)))
+    parsed = JSON.parse(disk)
   } catch {
-    return content
+    throw new CliError(`${path} is not valid JSON; fix or remove it and retry`)
   }
+  // User values win; the generator only adds missing keys (R17).
+  return json(mergeJson(JSON.parse(content), parsed))
 }
 
 /** validate → generate → filter to new-app + tool-owned paths → write. Nothing is written on errors. */
@@ -109,6 +112,11 @@ export async function runAddApp(opts: AddAppOptions, reg: Registry): Promise<Add
     throw new CliError(`Invalid stack:\n${errors.map((e) => `  - ${e.message}`).join('\n')}`)
   }
 
+  if (existsSync(join(opts.cwd, 'apps', opts.app.name))) {
+    throw new CliError(
+      `apps/${opts.app.name} already exists on disk; choose another name or remove it`,
+    )
+  }
   const prefix = `apps/${opts.app.name}/`
   const tree: FileTree = {}
   for (const [path, content] of Object.entries(generateProject(stack, reg))) {
