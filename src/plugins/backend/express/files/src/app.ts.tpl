@@ -1,5 +1,5 @@
-import express, { type Express, type NextFunction, type Request, type Response } from 'express'
 import { HelloResponseSchema } from '{{scope}}/types'
+import express, { type Express, type NextFunction, type Request, type Response } from 'express'
 
 export function parseOrigins(value: string | undefined): string[] {
   return (value ?? '')
@@ -14,16 +14,20 @@ export function createApp(): Express {
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     const origin = req.headers.origin
+    const preflight = req.method === 'OPTIONS'
+    if (origin) res.vary('Origin')
     if (origin && origins.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin)
-      res.setHeader('Vary', 'Origin')
-      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
-      res.setHeader(
-        'Access-Control-Allow-Headers',
-        req.headers['access-control-request-headers'] ?? 'Content-Type,Authorization',
-      )
+      if (preflight) {
+        res.vary('Access-Control-Request-Headers')
+        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
+        res.setHeader(
+          'Access-Control-Allow-Headers',
+          req.headers['access-control-request-headers'] ?? 'Content-Type,Authorization',
+        )
+      }
     }
-    if (req.method === 'OPTIONS') {
+    if (preflight) {
       res.sendStatus(204)
       return
     }

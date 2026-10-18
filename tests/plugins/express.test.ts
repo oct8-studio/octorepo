@@ -24,6 +24,7 @@ describe('expressPlugin', () => {
   it('generates package.json depending on the types package', () => {
     const pkg = JSON.parse(tree['apps/api/package.json'] as string)
     expect(pkg.name).toBe('@acme/api')
+    expect(pkg.files).toEqual(['dist', 'openapi.json'])
     expect(pkg.dependencies['@acme/types']).toBe('workspace:*')
     expect(pkg.dependencies.express).toBe(VERSIONS.express)
   })
@@ -43,5 +44,6 @@ describe('expressPlugin', () => {
     expect(d).toContain('pnpm --filter @acme/api... build')
     expect(d).toContain('CMD ["node","dist/main.js"]')
     expect(d).toContain('node:24-alpine')
+    expect(d).toContain('USER node')
   })
 })
