@@ -1,0 +1,8 @@
+{
+  "files": {
+    "includes": ["**", "!dist", "!docs", "!src/plugins/**/files", "!pnpm-lock.yaml"]
+  },
+  "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
+  "javascript": { "formatter": { "quoteStyle": "single", "semicolons": "asNeeded" } },
+  "linter": { "enabled": true }
+}
