@@ -35,6 +35,7 @@ export function restClientFiles(ctx: ProjectContext, backend: AppSpec): FileTree
     devDependencies: {
       [`${ctx.scope}/config`]: 'workspace:*',
       '@biomejs/biome': v['@biomejs/biome'],
+      '@types/node': v['@types/node'],
       'openapi-typescript': v['openapi-typescript'],
       tsdown: v.tsdown,
       typescript: v.typescript,

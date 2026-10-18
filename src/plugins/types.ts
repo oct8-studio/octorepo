@@ -22,6 +22,8 @@ export interface AppContext extends ProjectContext {
 export interface MonorepoPlugin {
   id: MonorepoTool
   label: string
+  /** CI build step, e.g. an "affected" build; defaults to `pnpm build`. */
+  ciBuildCommand?: string
   generate(ctx: ProjectContext): FileTree
 }
 
@@ -46,6 +48,9 @@ export interface ServicePlugin {
     volumes?: string[]
     healthcheck?: object
   }
-  /** e.g. DATABASE_URL */
-  env(ctx: ProjectContext): Record<string, string>
+  /**
+   * Connection env vars, e.g. DATABASE_URL. `host` defaults to the compose service name;
+   * pass 'localhost' for local development outside compose.
+   */
+  env(ctx: ProjectContext, host?: string): Record<string, string>
 }

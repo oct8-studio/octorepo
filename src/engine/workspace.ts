@@ -76,7 +76,8 @@ Requires Node 24 and pnpm.
 `
 }
 
-const CI = `name: CI
+function ci(buildCommand: string): string {
+  return `name: CI
 on:
   push:
     branches: [main]
@@ -86,6 +87,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history so the monorepo tool can compute affected projects.
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -95,11 +99,16 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm build
+      - run: ${buildCommand}
 `
+}
 
 /** Base workspace files, independent of monorepo tool/apps. Root scripts are left to the monorepo plugin. */
-export function workspaceFiles(ctx: ProjectContext, manifest: Manifest): FileTree {
+export function workspaceFiles(
+  ctx: ProjectContext,
+  manifest: Manifest,
+  opts: { ciBuildCommand?: string } = {},
+): FileTree {
   const v = ctx.versions
   const scope = ctx.scope
   return {
@@ -113,7 +122,12 @@ export function workspaceFiles(ctx: ProjectContext, manifest: Manifest): FileTre
         '@biomejs/biome': v['@biomejs/biome'],
       },
     }),
-    'pnpm-workspace.yaml': stringify({ packages: ['apps/*', 'packages/*'] }),
+    // pnpm 11+ fails install on unapproved dependency build scripts; esbuild needs its postinstall.
+    'pnpm-workspace.yaml': stringify({
+      packages: ['apps/*', 'packages/*'],
+      strictDepBuilds: false,
+      allowBuilds: { esbuild: true },
+    }),
     '.gitignore': GITIGNORE,
     '.nvmrc': '24\n',
     '.dockerignore': 'node_modules\n**/node_modules\n**/dist\n**/.next\n.git\n.turbo\n.nx\n',
@@ -169,6 +183,7 @@ export function workspaceFiles(ctx: ProjectContext, manifest: Manifest): FileTre
       dependencies: { zod: v.zod },
       devDependencies: {
         [`${scope}/config`]: 'workspace:*',
+        '@types/node': v['@types/node'],
         tsdown: v.tsdown,
         typescript: v.typescript,
         vitest: v.vitest,
@@ -195,7 +210,7 @@ export const HelloResponseSchema = z.object({ message: z.string() })
 export type HelloResponse = { message: string }
 `,
     '.octorepo.json': json(manifest),
-    '.github/workflows/ci.yml': CI,
+    '.github/workflows/ci.yml': ci(opts.ciBuildCommand ?? 'pnpm build'),
     'README.md': readme(manifest),
   }
 }

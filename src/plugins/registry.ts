@@ -1,4 +1,12 @@
 import type { AppKind, MonorepoTool } from '../model/stack'
+import { expressPlugin } from './backend/express'
+import { nestPlugin } from './backend/nest'
+import { nextPlugin } from './frontend/next'
+import { reactVitePlugin } from './frontend/react-vite'
+import { nxPlugin } from './monorepo/nx'
+import { turboPlugin } from './monorepo/turbo'
+import { postgresPlugin } from './service/postgres'
+import { redisPlugin } from './service/redis'
 import type { FrameworkPlugin, MonorepoPlugin, ServicePlugin } from './types'
 
 export class Registry {
@@ -39,7 +47,15 @@ export class Registry {
   }
 }
 
-/** Empty until Task 12 registers every plugin. */
+/** A registry with every built-in plugin. */
 export function defaultRegistry(): Registry {
   return new Registry()
+    .registerMonorepo(turboPlugin)
+    .registerMonorepo(nxPlugin)
+    .registerFramework(expressPlugin)
+    .registerFramework(nestPlugin)
+    .registerFramework(reactVitePlugin)
+    .registerFramework(nextPlugin)
+    .registerService(postgresPlugin)
+    .registerService(redisPlugin)
 }

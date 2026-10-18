@@ -37,7 +37,10 @@ describe('Registry', () => {
     expect(r.service('postgres')).toBe(s)
     expect(r.service('x')).toBeUndefined()
   })
-  it('defaultRegistry starts empty', () => {
-    expect(defaultRegistry().frameworks.size).toBe(0)
+  it('defaultRegistry registers every built-in plugin', () => {
+    const r = defaultRegistry()
+    expect([...r.monorepo.keys()].sort()).toEqual(['nx', 'turbo'])
+    expect([...r.frameworks.keys()].sort()).toEqual(['express', 'nest', 'next', 'react-vite'])
+    expect([...r.services.keys()].sort()).toEqual(['postgres', 'redis'])
   })
 })

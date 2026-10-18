@@ -34,3 +34,9 @@ export const VERSIONS: Readonly<Record<string, string>> = {
   '@testing-library/react': '16.3.3',
   '@testing-library/dom': '10.4.2',
 }
+
+/** Official Docker image major tags for compose services (`<image>:<major>-alpine`). */
+export const IMAGES = {
+  postgres: '18',
+  redis: '8',
+} as const

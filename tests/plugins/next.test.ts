@@ -70,4 +70,14 @@ describe('nextPlugin', () => {
     expect(d).toContain('CMD ["node","apps/site/server.js"]')
     expect(d).toContain('EXPOSE 3000')
   })
+  it('emits no fetch helper or client imports without backends', () => {
+    const t = nextPlugin.generate({ ...ctx, app: { ...ctx.app, uses: [] }, backends: [] })
+    const p = t['apps/site/app/page.tsx'] as string
+    expect(p).not.toContain('hello(')
+    expect(p).not.toContain('BackendResult')
+    expect(p).not.toContain('generated/api')
+    expect(p).toContain("from '@acme/ui-react'")
+    expect(t['apps/site/src/generated/api.ts']).toContain('export {}')
+    expect(t['apps/site/.env.example']).toBe('')
+  })
 })
