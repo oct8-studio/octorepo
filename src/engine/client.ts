@@ -48,6 +48,7 @@ export default defineConfig({
   format: ['esm', 'cjs'],
   dts: true,
   clean: true,
+  fixedExtension: false,
 })
 `
   const index = `import createOpenApiClient from 'openapi-fetch'
