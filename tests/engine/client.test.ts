@@ -26,6 +26,12 @@ describe('restClientFiles', () => {
     expect(pkg.devDependencies['openapi-typescript']).toBe(VERSIONS['openapi-typescript'])
     expect(pkg.exports['.'].import.default).toBe('./dist/index.js')
     expect(pkg.exports['.'].require.default).toBe('./dist/index.cjs')
+    expect(pkg.exports['.'].import.types).toBe('./dist/index.d.ts')
+    expect(pkg.exports['.'].require.types).toBe('./dist/index.d.cts')
+    expect(pkg.main).toBe('./dist/index.cjs')
+    expect(pkg.module).toBe('./dist/index.js')
+    expect(pkg.types).toBe('./dist/index.d.ts')
+    expect(tree['packages/api-client/tsdown.config.ts']).toContain('fixedExtension: false')
   })
   it('exports createClient', () => {
     const src = tree['packages/api-client/src/index.ts'] as string
