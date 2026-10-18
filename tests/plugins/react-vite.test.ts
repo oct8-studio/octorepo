@@ -55,6 +55,10 @@ describe('reactVitePlugin', () => {
 
   it('dockerfile builds with pnpm and serves from nginx', () => {
     const d = reactVitePlugin.dockerfile(base)
+    // pnpm (pinned via packageManager) is fetched in a layer cached on the root package.json only
+    expect(d).toContain(
+      'COPY package.json ./\nRUN pnpm --version\nCOPY . .\nRUN pnpm install --frozen-lockfile',
+    )
     expect(d).toContain('pnpm --filter @acme/web... build')
     expect(d).toContain('FROM nginx:alpine')
     expect(d).toContain('ARG VITE_API_URL=http://localhost:4000')

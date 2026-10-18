@@ -1,3 +1,4 @@
+import { PNPM_BUILD_STAGE } from '../../../engine/docker'
 import { camelCase, upperSnake } from '../../../engine/names'
 import { json, readPluginFiles } from '../../../engine/tree'
 import type { AppContext, FileTree, FrameworkPlugin, ResolvedApp } from '../../types'
@@ -137,12 +138,7 @@ function dockerfile(ctx: AppContext): string {
   const dir = `apps/${ctx.app.name}`
   const port = ctx.app.port
   // With outputFileTracingRoot at the repo root, standalone output nests the server at <dir>/server.js.
-  return `FROM node:24-alpine AS build
-RUN corepack enable
-WORKDIR /repo
-COPY . .
-RUN pnpm install --frozen-lockfile
-RUN pnpm --filter ${pkg}... build
+  return `${PNPM_BUILD_STAGE}RUN pnpm --filter ${pkg}... build
 
 FROM node:24-alpine AS runtime
 ENV NODE_ENV=production

@@ -1,3 +1,4 @@
+import { PNPM_BUILD_STAGE } from '../../../engine/docker'
 import { camelCase, upperSnake } from '../../../engine/names'
 import { json, readPluginFiles } from '../../../engine/tree'
 import type { AppContext, FileTree, FrameworkPlugin, ResolvedApp } from '../../types'
@@ -176,12 +177,7 @@ function dockerfile(ctx: AppContext): string {
       return `ARG ${n}=http://localhost:${b.port}\nENV ${n}=$${n}\n`
     })
     .join('')
-  return `FROM node:24-alpine AS build
-RUN corepack enable
-WORKDIR /repo
-COPY . .
-RUN pnpm install --frozen-lockfile
-${args}RUN pnpm --filter ${pkg}... build
+  return `${PNPM_BUILD_STAGE}${args}RUN pnpm --filter ${pkg}... build
 
 FROM nginx:alpine AS runtime
 COPY apps/${ctx.app.name}/nginx.conf /etc/nginx/conf.d/default.conf

@@ -49,6 +49,10 @@ describe('nestPlugin', () => {
   })
   it('generates a pnpm multi-stage Dockerfile', () => {
     const d = nestPlugin.dockerfile(ctx)
+    // pnpm (pinned via packageManager) is fetched in a layer cached on the root package.json only
+    expect(d).toContain(
+      'COPY package.json ./\nRUN pnpm --version\nCOPY . .\nRUN pnpm install --frozen-lockfile',
+    )
     expect(d).toContain('EXPOSE 4000')
     expect(d).toContain('pnpm --filter @acme/core... build')
     expect(d).toContain('CMD ["node","dist/main.js"]')

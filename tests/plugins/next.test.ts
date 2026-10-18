@@ -65,6 +65,10 @@ describe('nextPlugin', () => {
   })
   it('generates a standalone Dockerfile', () => {
     const d = nextPlugin.dockerfile(ctx)
+    // pnpm (pinned via packageManager) is fetched in a layer cached on the root package.json only
+    expect(d).toContain(
+      'COPY package.json ./\nRUN pnpm --version\nCOPY . .\nRUN pnpm install --frozen-lockfile',
+    )
     expect(d).toContain('pnpm --filter @acme/site... build')
     expect(d).toContain('apps/site/.next/static')
     expect(d).toContain('CMD ["node","apps/site/server.js"]')

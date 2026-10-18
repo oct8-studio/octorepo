@@ -1,18 +1,26 @@
 import type { AppContext } from '../plugins/types'
 
 /**
+ * Build stage up to `pnpm install`. pnpm (pinned by the root packageManager) is fetched in its own
+ * layer keyed on the root package.json only, so source edits don't re-download it on every build.
+ */
+export const PNPM_BUILD_STAGE = `FROM node:24-alpine AS build
+RUN corepack enable
+WORKDIR /repo
+COPY package.json ./
+RUN pnpm --version
+COPY . .
+RUN pnpm install --frozen-lockfile
+`
+
+/**
  * Multi-stage Dockerfile for a Node service in a pnpm workspace. Identical for Nx and Turbo
  * because it only uses pnpm. `startCmd` is the runtime CMD, e.g. ['node', 'dist/main.js'].
  */
 export function nodeServiceDockerfile(ctx: AppContext, opts: { startCmd: string[] }): string {
   const pkg = `${ctx.scope}/${ctx.app.name}`
   const port = ctx.app.port
-  return `FROM node:24-alpine AS build
-RUN corepack enable
-WORKDIR /repo
-COPY . .
-RUN pnpm install --frozen-lockfile
-RUN pnpm --filter ${pkg}... build
+  return `${PNPM_BUILD_STAGE}RUN pnpm --filter ${pkg}... build
 RUN pnpm deploy --filter ${pkg} --prod --legacy /out
 
 FROM node:24-alpine AS runtime
