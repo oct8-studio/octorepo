@@ -1,6 +1,7 @@
 /** Exact pinned versions used when generating repos. Keep in sync via `npm view <pkg> version`. */
 export const VERSIONS: Readonly<Record<string, string>> = {
-  typescript: '7.0.2',
+  // Generated repos use TS 6.0.x: @nestjs/cli 12 requires typescript ~6.0.2 and TS 7's native compiler lacks the JS API many tools use.
+  typescript: '6.0.3',
   turbo: '2.11.9',
   nx: '23.3.0',
   '@biomejs/biome': '2.5.15',
