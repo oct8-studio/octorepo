@@ -4,7 +4,8 @@ import type { MonorepoPlugin } from '../../types'
 export const nxPlugin: MonorepoPlugin & { ciBuildCommand: string } = {
   id: 'nx',
   label: 'Nx',
-  ciBuildCommand: 'pnpm nx affected -t build',
+  // PR checkouts have no local main branch, so compare against the fetched remote ref.
+  ciBuildCommand: 'pnpm nx affected -t build --base=origin/main --head=HEAD',
   generate(ctx) {
     return {
       'package.json': json({

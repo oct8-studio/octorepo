@@ -53,7 +53,9 @@ describe('generateProject', () => {
     expect(ci).toContain('fetch-depth: 0')
     expect(ci).toContain('pnpm turbo run build --affected')
     const nx = generateProject({ ...stack, monorepoTool: 'nx' }, defaultRegistry())
-    expect(nx['.github/workflows/ci.yml']).toContain('pnpm nx affected -t build')
+    expect(nx['.github/workflows/ci.yml']).toContain(
+      'run: pnpm nx affected -t build --base=origin/main --head=HEAD',
+    )
     expect(nx['nx.json']).toBeDefined()
     expect(nx['turbo.json']).toBeUndefined()
   })

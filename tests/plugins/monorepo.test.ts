@@ -58,6 +58,6 @@ describe('nx plugin', () => {
     expect(tree['package.json']).not.toContain('@nx/')
   })
   it('exposes affected ci build command', () => {
-    expect(nxPlugin.ciBuildCommand).toBe('pnpm nx affected -t build')
+    expect(nxPlugin.ciBuildCommand).toBe('pnpm nx affected -t build --base=origin/main --head=HEAD')
   })
 })
