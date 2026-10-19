@@ -1,0 +1,6 @@
+{
+  "name": "saas",
+  "monorepoTool": "turbo",
+  "preset": "saas",
+  "apps": []
+}

@@ -6,7 +6,9 @@
  * Generates the stack into a temp dir with install on, then runs lint, typecheck, test, build and a
  * `docker build` per app. With --dev it first runs `pnpm dev` on the fresh repo (nothing built yet)
  * and checks every app answers like it would for a developer, then kills the whole process tree.
- * With --compose it also boots docker compose and checks /health, every SSR page's HTML and SPA CORS.
+ * With --compose it also boots docker compose and checks every service container is healthy, each
+ * backend's /health (and /db/health → one seeded greeting when the stack has an ORM), every SSR
+ * page's HTML and SPA CORS. A fixture may name a `preset`; it is expanded like `--preset`.
  * --no-docker skips the image builds (local use when no Docker engine is available; CI never passes it).
  * Lint runs after the post-install `biome check --write`, so formatting can't hide a broken template.
  */
@@ -19,6 +21,7 @@ import { pathToFileURL } from 'node:url'
 import { runCreate } from '../src/commands/create'
 import { parseStackConfig, type StackConfig } from '../src/model/stack'
 import { defaultRegistry } from '../src/plugins/registry'
+import { applyPreset } from '../src/presets'
 import { validateStack } from '../src/rules'
 import { findCombo } from './combos'
 import { runsAsRoot } from './non-root'
@@ -71,6 +74,43 @@ async function step(name: string, fn: () => Promise<void>): Promise<void> {
 async function sh(cmd: string, args: string[], cwd: string): Promise<void> {
   const code = await run(cmd, args, cwd)
   if (code !== 0) throw new Error(`\`${cmd} ${args.join(' ')}\` exited with ${code}`)
+}
+
+/** Runs a command and returns its stdout (stderr passes through). */
+function capture(cmd: string, args: string[], cwd: string): Promise<{ code: number; out: string }> {
+  return new Promise((done, fail) => {
+    const child = spawn(cmd, args, { cwd, stdio: ['ignore', 'pipe', 'inherit'], env: CHILD_ENV })
+    let out = ''
+    child.stdout.on('data', (d) => {
+      out += d
+    })
+    child.on('error', fail)
+    child.on('close', (code) => done({ code: code ?? 1, out }))
+  })
+}
+
+/** Every compose service of the stack runs and its healthcheck reports healthy. */
+async function assertServicesHealthy(project: string, services: string[], root: string) {
+  const { code, out } = await capture(
+    'docker',
+    ['compose', '-p', project, 'ps', '--all', '--format', 'json'],
+    root,
+  )
+  if (code !== 0) throw new Error(`docker compose ps exited with ${code}`)
+  // Newer compose prints one JSON object per line; older versions print one array.
+  const rows: { Service: string; State: string; Health: string }[] = out.trim().startsWith('[')
+    ? JSON.parse(out)
+    : out
+        .split('\n')
+        .filter((l) => l.trim())
+        .map((l) => JSON.parse(l))
+  for (const id of services) {
+    const row = rows.find((r) => r.Service === id)
+    if (!row) throw new Error(`service ${id} has no container`)
+    if (row.State !== 'running' || row.Health !== 'healthy') {
+      throw new Error(`service ${id} is ${row.State}/${row.Health || 'no healthcheck'}`)
+    }
+  }
 }
 
 async function check(name: string, fn: () => Promise<void>): Promise<void> {
@@ -280,7 +320,11 @@ function parseArgs(argv: string[]): {
     if (!path) throw new Error('--fixture needs a path')
     return {
       label: `fixture:${path}`,
-      load: async () => parseStackConfig(JSON.parse(await readFile(resolve(path), 'utf8'))),
+      load: async () => {
+        const raw = JSON.parse(await readFile(resolve(path), 'utf8'))
+        const stack = parseStackConfig(raw)
+        return typeof raw.preset === 'string' ? applyPreset(raw.preset, stack) : stack
+      },
       compose,
       dev,
       keep,
@@ -360,6 +404,11 @@ async function main(): Promise<number> {
           root,
         ),
       )
+      if (stack.services.length) {
+        await check(`services healthy (${stack.services.join(', ')})`, () =>
+          eventually(() => assertServicesHealthy(project, stack.services, root)),
+        )
+      }
       const backends = stack.apps.filter((a) => a.kind === 'backend')
       for (const b of backends) {
         await check(`health ${b.name}`, () =>
@@ -368,6 +417,19 @@ async function main(): Promise<number> {
             if (res.status !== 200) throw new Error(`GET /health → ${res.status}`)
           }),
         )
+        if (stack.orm) {
+          // The migrate service applied the migrations and seeded exactly one greeting.
+          await check(`db health ${b.name}`, () =>
+            eventually(async () => {
+              const res = await fetchText(`http://localhost:${b.port}/db/health`)
+              if (res.status !== 200) throw new Error(`GET /db/health → ${res.status} ${res.body}`)
+              const body = JSON.parse(res.body)
+              if (body.ok !== true || body.greetings !== 1) {
+                throw new Error(`GET /db/health → ${res.body} (want ok, greetings 1)`)
+              }
+            }),
+          )
+        }
       }
       for (const fe of stack.apps.filter((a) => a.kind === 'frontend')) {
         const uses = backends.filter((b) => fe.uses?.includes(b.name))
