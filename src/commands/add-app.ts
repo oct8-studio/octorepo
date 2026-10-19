@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { generateProject } from '../engine/generate'
 import { type FileTree, json, mergeJson } from '../engine/tree'
 import { writeTree } from '../engine/write'
+import { MANIFEST_FILE } from '../meta'
 import { CliError, ManifestError } from '../model/errors'
 import { type AppSpec, parseManifest, type StackConfig } from '../model/stack'
 import type { Registry } from '../plugins/registry'
@@ -25,7 +26,6 @@ export interface AddAppResult {
   manual?: string[]
 }
 
-const MANIFEST = '.octorepo.json'
 const ROOT_OWNED = new Set([
   'package.json',
   'pnpm-workspace.yaml',
@@ -33,7 +33,7 @@ const ROOT_OWNED = new Set([
   'nx.json',
   'docker-compose.yml',
   '.env.example',
-  MANIFEST,
+  MANIFEST_FILE,
 ])
 
 /** Paths `add` may rewrite: tool-owned files; everything else is user-owned. */
@@ -48,12 +48,12 @@ function isToolOwned(path: string): boolean {
 export async function readManifest(root: string): Promise<StackConfig> {
   let raw: string
   try {
-    raw = await readFile(join(root, MANIFEST), 'utf8')
+    raw = await readFile(join(root, MANIFEST_FILE), 'utf8')
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
       throw new ManifestError(
         'missing',
-        `No ${MANIFEST} found in ${root}. Run from a repo created by this tool.`,
+        `No ${MANIFEST_FILE} found in ${root}. Run from a repo created by this tool.`,
       )
     }
     throw e
@@ -62,7 +62,7 @@ export async function readManifest(root: string): Promise<StackConfig> {
   try {
     data = JSON.parse(raw)
   } catch {
-    throw new ManifestError('invalid', `${MANIFEST} is not valid JSON`)
+    throw new ManifestError('invalid', `${MANIFEST_FILE} is not valid JSON`)
   }
   try {
     return parseManifest(data)
@@ -79,7 +79,7 @@ export async function readManifest(root: string): Promise<StackConfig> {
 
 /** Keeps the keys the user added to JSON tool-owned files that already exist on disk. */
 async function mergeWithDisk(root: string, path: string, content: string): Promise<string> {
-  if (!path.endsWith('.json') || path === MANIFEST) return content
+  if (!path.endsWith('.json') || path === MANIFEST_FILE) return content
   let disk: string
   try {
     disk = await readFile(join(root, path), 'utf8')

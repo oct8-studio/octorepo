@@ -1,4 +1,5 @@
 import { stringify } from 'yaml'
+import { MANIFEST_FILE } from '../meta'
 import type { Manifest } from '../model/stack'
 import type { ProjectContext } from '../plugins/types'
 import { type FileTree, json } from './tree'
@@ -130,10 +131,13 @@ export function workspaceFiles(
       packages: ['apps/*', 'packages/*'],
       strictDepBuilds: false,
       allowBuilds: { esbuild: true },
+      // openapi-typescript declares a TypeScript 5 peer; the repo pins TypeScript 6, which works.
+      peerDependencyRules: { allowedVersions: { typescript: '6' } },
     }),
     '.gitignore': GITIGNORE,
     '.nvmrc': '24\n',
-    '.dockerignore': 'node_modules\n**/node_modules\n**/dist\n**/.next\n.git\n.turbo\n.nx\n',
+    '.dockerignore':
+      'node_modules\n**/node_modules\n**/dist\n**/.next\n.git\n.turbo\n.nx\n.env\n**/.env\n**/.env.local\n',
     'biome.json': json({
       $schema: `https://biomejs.dev/schemas/${v['@biomejs/biome']}/schema.json`,
       files: {
@@ -212,7 +216,7 @@ export const HelloResponseSchema = z.object({ message: z.string() })
 
 export type HelloResponse = { message: string }
 `,
-    '.octorepo.json': json(manifest),
+    [MANIFEST_FILE]: json(manifest),
     '.github/workflows/ci.yml': ci(opts.ciBuildCommand ?? 'pnpm build'),
     'README.md': readme(manifest),
   }

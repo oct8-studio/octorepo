@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { parse } from 'yaml'
 import { workspaceFiles } from '../../src/engine/workspace'
 import type { Manifest } from '../../src/model/stack'
 import { parseManifest } from '../../src/model/stack'
@@ -44,10 +45,18 @@ describe('workspaceFiles', () => {
   it('manifest round-trips', () => {
     expect(parseManifest(JSON.parse(tree['.octorepo.json'] as string)).name).toBe('acme')
   })
+  it('lets openapi-typescript accept the pinned TypeScript major', () => {
+    const ws = parse(tree['pnpm-workspace.yaml'] as string)
+    expect(ws.peerDependencyRules).toEqual({ allowedVersions: { typescript: '6' } })
+  })
   it('root files', () => {
     expect(tree['pnpm-workspace.yaml']).toContain('apps/*')
     expect(tree['.nvmrc']).toBe('24\n')
     expect(tree['.dockerignore']).toContain('**/node_modules')
+    // Local .env files hold dev settings and must never be baked into images.
+    expect(tree['.dockerignore']?.split('\n')).toEqual(
+      expect.arrayContaining(['.env', '**/.env', '**/.env.local']),
+    )
     expect(tree['README.md']).toContain('pnpm --filter @acme/api dev')
     const root = JSON.parse(tree['package.json'] as string)
     expect(root.private).toBe(true)
