@@ -1,6 +1,6 @@
 {
   "name": "@oct8/create-octorepo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Scaffold a multi-app Node/TypeScript monorepo with octorepo: npm create @oct8/octorepo",
   "type": "module",
   "bin": {
@@ -11,7 +11,7 @@
     "README.md"
   ],
   "dependencies": {
-    "@oct8/octorepo": "0.1.0"
+    "@oct8/octorepo": "0.2.0"
   },
   "engines": {
     "node": ">=22.12"

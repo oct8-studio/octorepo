@@ -49,7 +49,7 @@ describe('nuxtPlugin', () => {
   it('calls backends from a server route and renders Card from ui-vue', () => {
     const r = tree['apps/site/server/api/hello.get.ts'] as string
     expect(r).toContain('defineEventHandler')
-    expect(r).toContain("billingApiClient.GET('/hello')")
+    expect(r).toContain("billingApiClient.GET('/hello', { signal })")
     expect(r).toContain('toCard')
     const p = tree['apps/site/app/app.vue'] as string
     expect(p).toContain("import { Card } from '@acme/ui-vue'")

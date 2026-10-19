@@ -111,6 +111,21 @@ describe('runAddService', () => {
     expect(await read(root, '.octorepo.json')).toBe(manifest)
   })
 
+  it('patches root ignore files of an older repo (append-only) and leaves current ones alone', async () => {
+    const before = await read(root, '.gitignore')
+    const fresh = await runAddService({ cwd: root, service: 'mailpit', json: true }, reg)
+    expect(await read(root, '.gitignore')).toBe(before)
+    expect(fresh.written).not.toContain(join(root, '.gitignore'))
+
+    const old = 'node_modules\ndist\n.env\nmy-local-dir\n'
+    await writeFile(join(root, '.gitignore'), old)
+    const r = await runAddService({ cwd: root, service: 'valkey', json: true }, reg)
+    const gi = await read(root, '.gitignore')
+    expect(gi.startsWith(old)).toBe(true)
+    expect(gi.split('\n')).toEqual(expect.arrayContaining(['.turbo', '.nuxt', '.output']))
+    expect(r.written).toContain(join(root, '.gitignore'))
+  })
+
   it('refuses outside a generated repo', async () => {
     const empty = await mkdtemp(join(tmpdir(), 'octo-svc-empty-'))
     await expect(runAddService({ cwd: empty, service: 'redis', json: true }, reg)).rejects.toThrow(

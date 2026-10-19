@@ -11,6 +11,7 @@ import type { Registry } from '../plugins/registry'
 import { type Issue, validateStack } from '../rules'
 import { VERSIONS } from '../versions'
 import { readManifest } from './add-app'
+import { patchRootFiles } from './root-patch'
 
 export interface AddServiceOptions {
   cwd: string
@@ -93,6 +94,9 @@ export async function runAddService(
   for (const [path, content] of Object.entries(generated)) {
     if (REGENERATED.has(path) || GENERATED_RE.test(path)) tree[path] = content
   }
+  // Repos from older versions miss newer ignore entries; same append/merge-only patch as add app.
+  const root = await patchRootFiles(opts.cwd, generated)
+  Object.assign(tree, root.tree)
   const written = await writeTree(opts.cwd, tree, { mode: 'update' })
   written.push(await refreshAgentsSection(opts.cwd, stack))
 
@@ -103,5 +107,10 @@ export async function runAddService(
       if (await appendEnv(path, vars)) written.push(path)
     }
   }
-  return { written, warnings, fixes, message: `Added service "${opts.service}" (${plugin.label})` }
+  return {
+    written,
+    warnings: [...warnings, ...root.warnings],
+    fixes,
+    message: `Added service "${opts.service}" (${plugin.label})`,
+  }
 }

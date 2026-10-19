@@ -58,7 +58,9 @@ describe('astroPlugin', () => {
     const p = tree['apps/site/src/pages/index.astro'] as string
     expect(p).toContain("import Card from '../components/Card.astro'")
     expect(p).toContain("import { apiClient, billingApiClient } from '../generated/api'")
-    expect(p).toContain("hello('billing-api', () => billingApiClient.GET('/hello'))")
+    expect(p).toContain(
+      "hello('billing-api', (signal) => billingApiClient.GET('/hello', { signal }))",
+    )
     expect(p).toContain('.map(toCard)')
     expect(p).not.toContain('ui-react')
     expect(tree['apps/site/src/components/Card.astro']).toContain('<slot />')

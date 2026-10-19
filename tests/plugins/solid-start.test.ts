@@ -58,15 +58,23 @@ describe('solidStartPlugin', () => {
     const h = tree['apps/site/src/lib/hello.ts'] as string
     expect(h.startsWith("'use server'\n")).toBe(true)
     expect(h).toContain("import { apiClient, billingApiClient } from '../generated/api'")
-    expect(h).toContain("hello('billing-api', () => billingApiClient.GET('/hello'))")
+    expect(h).toContain(
+      "hello('billing-api', (signal) => billingApiClient.GET('/hello', { signal }))",
+    )
     expect(h).toContain('return results.map(toCard)')
     // Two calls exceed 100 columns, so each goes on its own line (as biome formats it).
     expect(h).toContain("Promise.all([\n    hello('api'")
   })
-  it('keeps a single call on one line', () => {
+  it('keeps a single call on one line when it fits in 100 columns', () => {
+    const t = solidStartPlugin.generate({ ...ctx, backends: [api] })
+    expect(t['apps/site/src/lib/hello.ts']).toContain(
+      "  const results = await Promise.all([hello('api', (signal) => apiClient.GET('/hello', { signal }))])\n",
+    )
+  })
+  it('splits a single call that does not fit', () => {
     const t = solidStartPlugin.generate({ ...ctx, backends: [billing] })
     expect(t['apps/site/src/lib/hello.ts']).toContain(
-      "  const results = await Promise.all([hello('billing-api', () => billingApiClient.GET('/hello'))])\n",
+      "Promise.all([\n    hello('billing-api', (signal) => billingApiClient.GET('/hello', { signal })),\n  ])",
     )
   })
   it('renders cards from a deferred-stream query', () => {

@@ -60,7 +60,9 @@ describe('sveltekitPlugin', () => {
   it('loads every backend in +page.server.ts and renders cards with ui-svelte', () => {
     const s = tree['apps/admin/src/routes/+page.server.ts'] as string
     expect(s).toContain("import { apiClient, billingApiClient } from '../generated/api'")
-    expect(s).toContain("hello('billing-api', () => billingApiClient.GET('/hello'))")
+    expect(s).toContain(
+      "hello('billing-api', (signal) => billingApiClient.GET('/hello', { signal }))",
+    )
     expect(s).toContain('export const load: PageServerLoad')
     const p = tree['apps/admin/src/routes/+page.svelte'] as string
     expect(p).toContain("import { Card } from '@acme/ui-svelte'")

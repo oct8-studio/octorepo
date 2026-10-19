@@ -11,6 +11,7 @@ import { type AppSpec, parseManifest, type StackConfig } from '../model/stack'
 import type { Registry } from '../plugins/registry'
 import { type Issue, validateStack } from '../rules'
 import { runPostSteps } from './post'
+import { patchRootFiles } from './root-patch'
 
 export interface AddAppOptions {
   cwd: string
@@ -121,13 +122,17 @@ export async function runAddApp(opts: AddAppOptions, reg: Registry): Promise<Add
   }
   const prefix = `apps/${opts.app.name}/`
   const tree: FileTree = {}
-  for (const [path, content] of Object.entries(generateProject(stack, reg))) {
+  const generated = generateProject(stack, reg)
+  for (const [path, content] of Object.entries(generated)) {
     const isNewUi =
       /^packages\/ui-[^/]+\//.test(path) &&
       !existsSync(join(opts.cwd, path.split('/').slice(0, 2).join('/')))
     if (path.startsWith(prefix) || isNewUi) tree[path] = content
     else if (isToolOwned(path)) tree[path] = await mergeWithDisk(opts.cwd, path, content)
   }
+  // Repos from older versions miss newer ignore entries (e.g. a new framework's build dir).
+  const root = await patchRootFiles(opts.cwd, generated)
+  Object.assign(tree, root.tree)
   const written = await writeTree(opts.cwd, tree, { mode: 'update' })
   written.push(await refreshAgentsSection(opts.cwd, stack))
 
@@ -135,5 +140,10 @@ export async function runAddApp(opts: AddAppOptions, reg: Registry): Promise<Add
     opts.install === undefined
       ? undefined
       : await runPostSteps(opts.cwd, { install: opts.install, git: false })
-  return { written, warnings, fixes, ...(manual ? { manual } : {}) }
+  return {
+    written,
+    warnings: [...warnings, ...root.warnings],
+    fixes,
+    ...(manual ? { manual } : {}),
+  }
 }

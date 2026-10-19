@@ -36,7 +36,7 @@ describe('vueVitePlugin', () => {
     expect(pkg.dependencies['@acme/ui-vue']).toBe('workspace:*')
     expect(pkg.files).toEqual(['dist'])
     const app = tree['apps/web/src/App.vue'] as string
-    expect(app).toContain("apiClient.GET('/hello')")
+    expect(app).toContain("apiClient.GET('/hello', { signal })")
     expect(app).toContain("from '@acme/ui-vue'")
     expect(app).toContain('{{ apiMessage }}')
     expect(app).toContain('Backend unreachable')

@@ -76,3 +76,15 @@ export function createClient(baseUrl: string) {
     [`${dir}/src/index.ts`]: index,
   }
 }
+
+/**
+ * One `hello('<name>', (signal) => <client>.GET('/hello', { <init> })),` entry of a generated
+ * `Promise.all([...])`, wrapped the way biome formats it when it exceeds 100 columns.
+ */
+export function helloCall(name: string, client: string, init = 'signal', indent = '    '): string {
+  const call = `${client}.GET('/hello', { ${init} })`
+  const oneLine = `${indent}hello('${name}', (signal) => ${call}),`
+  return oneLine.length <= 100
+    ? oneLine
+    : `${indent}hello('${name}', (signal) =>\n${indent}  ${call},\n${indent}),`
+}
