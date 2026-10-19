@@ -38,6 +38,8 @@ interface FrameworkPlugin {
   label: string
   apiStyles: string[] // e.g. ['rest']; empty for frontends
   defaultPort: number
+  uiFamily?: UiFamily // frontends: 'react' | 'vue' | 'svelte' | 'solid' (shared packages/ui-<family>)
+  rendering?: 'ssr' | 'spa' // frontends: how /hello is fetched and how e2e checks the page
   generate(ctx: AppContext): FileTree      // paths relative to the repo root
   dockerfile(ctx: AppContext): string
 }
@@ -49,7 +51,8 @@ interface FrameworkPlugin {
 - **package.json**: build it in code with `json({...})`, taking every dependency version from `ctx.versions`.
 - **`files` field (ruling R12)**: every app/package `package.json` declares `files` (apps: `dist` plus runtime assets such as `openapi.json`) so `pnpm deploy` ships the build output. Next.js apps are exempt (they ship `.next/standalone`).
 - **Scripts**: every app has `build`, `dev`, `lint` (`biome check`), `typecheck` (`tsc --noEmit`) and `test` (`vitest run`). Generated source must pass `biome check` as generated.
-- **Dockerfile**: node services can use `nodeServiceDockerfile(ctx, { startCmd })` from `src/engine/docker.ts`.
+- **Dockerfile**: node services can use `nodeServiceDockerfile(ctx, { startCmd })` from `src/engine/docker.ts`. Others start from the shared `PNPM_BUILD_STAGE`; the runtime stage must not run as root (e2e checks the image's `User`).
+- **Ignores**: the root `biome.json`, `.gitignore` and `.dockerignore` already cover every supported framework's build and generated dirs (`.output`, `.nuxt`, `.svelte-kit`, `.astro`, `.react-router`, `.tanstack`, `.nitro`, `build`, ...), and the root `biome.json` enables Biome's HTML full support so `.vue`/`.svelte`/`.astro` templates are linted. Add a new framework's dirs there and in the turbo/nx build `outputs`. Don't add nested per-app configs.
 
 ### Backend HTTP contract
 
@@ -70,15 +73,19 @@ Add the plugin to `defaultRegistry()` in `src/plugins/registry.ts`:
 .registerFramework(fastifyPlugin)
 ```
 
+A frontend with a new `uiFamily` also needs a shared UI package generator: `.registerUi('<family>', generator)` (see `src/engine/ui-vue.ts`).
+
 If it needs new compatibility rules, add them in `src/rules/rules.ts`.
 
 ### Cover it in the e2e matrix
 
-Add the framework to `FRONTENDS` or `BACKENDS` in `scripts/combos.ts`, so `COMBOS` includes it for every monorepo tool. Then run the end-to-end check, which generates the repo with install on, runs lint, typecheck, test and build, plus a `docker build` per app:
+Add the framework to `NEW_FRONTENDS` (paired with hono on turbo and express on nx) or `NEW_BACKENDS` (behind react-vite on turbo and next on nx) in `scripts/combos.ts`; `pnpm tsx scripts/combos.ts list` prints every id CI runs. Then run the end-to-end check, which generates the repo with install on, runs lint, typecheck, test and build, plus a `docker build` per app:
 
 ```bash
 pnpm tsx scripts/e2e.ts next-nest-turbo            # one combo id
+pnpm tsx scripts/e2e.ts next-nest-turbo --dev     # first runs `pnpm dev` and checks every app answers
 pnpm tsx scripts/e2e.ts next-nest-turbo --compose  # also boots docker compose and checks /health
+pnpm tsx scripts/e2e.ts --fixture fixtures/families.json --dev --compose  # mixed UI families
 ```
 
 Also add a unit test in `tests/plugins/<id>.test.ts` (metadata, generated `package.json`, key files).

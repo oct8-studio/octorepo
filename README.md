@@ -53,12 +53,12 @@ Or describe the stack in JSON and pass `--config stack.json`:
 
 Other `create` flags: `--no-install`, `--no-git`, `--force`, `--json` (machine-readable result), `--yes`.
 
-## Supported options (Plan 1)
+## Supported options
 
 | Category | Options |
 |---|---|
-| Backend frameworks | `express`, `nest` |
-| Frontend frameworks | `next`, `react-vite` |
+| Backend frameworks | `express`, `fastify`, `hono`, `koa`, `nest` |
+| Frontend frameworks | `next`, `react-vite`, `react-router`, `tanstack-start`, `vue-vite`, `nuxt`, `sveltekit`, `astro`, `solid-start` |
 | Services (Docker Compose) | `postgres`, `redis` |
 | Monorepo tool | `turbo`, `nx` |
 | Package manager | `pnpm` |
@@ -74,7 +74,10 @@ my-repo/
     types/              # shared types + zod schemas
     config/             # shared tsconfig bases
     api-client/         # typed client generated from api's OpenAPI spec
-    ui-react/           # shared React components
+    ui-react/           # shared components, one package per UI family in use:
+    ui-vue/             #   ui-react (Next, React Vite, React Router, TanStack Start),
+    ui-svelte/          #   ui-vue (Vue Vite, Nuxt), ui-svelte (SvelteKit), ui-solid (SolidStart);
+    ui-solid/           #   Astro pages use plain markup
   docker-compose.yml    # selected services + apps
   turbo.json | nx.json
   pnpm-workspace.yaml
@@ -86,6 +89,8 @@ my-repo/
 Each app ships a Dockerfile, and every workspace package has `build`, `dev`, `lint`, `typecheck` and `test` scripts.
 
 `pnpm dev` builds the shared packages first, then runs every app in watch mode. Each app reads local settings from its own `.env`, a gitignored copy of `.env.example` written at generation time; backends allow CORS from the frontends that use them unless `CORS_ORIGINS` is set. `docker compose up` publishes ports on `127.0.0.1` only.
+
+Frontends call their backends in one of two ways. SPAs (`react-vite`, `vue-vite`) read `VITE_<BACKEND>_URL` at build time. SSR frameworks call backends on the server and read `<BACKEND>_URL` at request time (Docker Compose sets it), falling back to `http://localhost:<backend port>`. Next.js also loads the app's `.env`. The other SSR frameworks don't load `.env` outside Compose; the fallback is the same as the `.env.example` default, so `pnpm dev` works anyway. Set the variable in your shell to point elsewhere. If a backend is down, the page shows it as "unreachable" and the build doesn't fail. Each SSR image's `HEALTHCHECK` requests `/`, which also calls the backends; that's harmless.
 
 ## Add an app
 
@@ -140,7 +145,7 @@ Without MCP, `npx @oct8/octorepo options --json` lists the options and `create`/
 
 ## Roadmap
 
-Fastify, Hono, TanStack Start, Vue, Nuxt, SvelteKit, tRPC, Prisma/Drizzle, microservices, GraphQL, gRPC.
+tRPC, Prisma/Drizzle, more services, microservices, GraphQL, gRPC, Elysia, Angular.
 
 ## Contributing
 
