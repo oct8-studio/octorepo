@@ -1,7 +1,7 @@
 {
-  "name": "create-octorepo",
+  "name": "@oct8/create-octorepo",
   "version": "0.1.0",
-  "description": "Scaffold a multi-app Node/TypeScript monorepo with octorepo: npm create octorepo",
+  "description": "Scaffold a multi-app Node/TypeScript monorepo with octorepo: npm create @oct8/octorepo",
   "type": "module",
   "bin": {
     "create-octorepo": "index.js"
@@ -11,7 +11,7 @@
     "README.md"
   ],
   "dependencies": {
-    "octorepo": "0.1.0"
+    "@oct8/octorepo": "0.1.0"
   },
   "engines": {
     "node": ">=22.12"
@@ -31,5 +31,8 @@
     "type": "git",
     "url": "git+https://github.com/oct8-studio/octorepo.git",
     "directory": "create-octorepo"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

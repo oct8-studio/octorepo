@@ -1,5 +1,5 @@
 {
-  "name": "octorepo",
+  "name": "@oct8/octorepo",
   "version": "0.1.0",
   "description": "Scaffold multi-app Node/TypeScript monorepos (Nx or Turborepo) with frontends, backends and Docker Compose",
   "keywords": [
@@ -57,5 +57,8 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

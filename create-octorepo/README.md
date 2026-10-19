@@ -1,7 +1,7 @@
-# create-octorepo
+# @oct8/create-octorepo
 
 ```sh
-npm create octorepo my-app
+npm create @oct8/octorepo my-app
 ```
 
-Runs [`octorepo create`](https://github.com/oct8-studio/octorepo) with the same arguments. See the main README for flags.
+Runs [`@oct8/octorepo create`](https://github.com/oct8-studio/octorepo) with the same arguments. See the main README for flags.

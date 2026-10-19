@@ -1,6 +1,6 @@
 # octorepo
 
-Scaffold multi-app Node/TypeScript monorepos: any number of frontends and backends, wired together, with **Nx** or **Turborepo**, Docker Compose and typed API clients. Add more apps later with `npx octorepo add app`.
+Scaffold multi-app Node/TypeScript monorepos: any number of frontends and backends, wired together, with **Nx** or **Turborepo**, Docker Compose and typed API clients. Add more apps later with `npx @oct8/octorepo add app`.
 
 <!-- TODO: demo GIF -->
 
@@ -11,13 +11,13 @@ An [oct8 studio](https://github.com/oct8-studio) project.
 Requires Node >= 22.12 to run the CLI; generated repos target Node 24 (`.nvmrc`, `engines`, `node:24-alpine`). pnpm is used for generated repos.
 
 ```bash
-npx octorepo create my-repo
+npx @oct8/octorepo create my-repo
 ```
 
 Or, equivalently:
 
 ```bash
-npm create octorepo my-repo
+npm create @oct8/octorepo my-repo
 ```
 
 Run without flags in a terminal and octorepo asks for the stack interactively; the project name defaults to the directory name (`my-repo` above).
@@ -27,7 +27,7 @@ Without a `[dir]` argument the project is created in `./<name>`. In non-interact
 ## Non-interactive use
 
 ```bash
-npx octorepo create my-repo \
+npx @oct8/octorepo create my-repo \
   --tool turbo \
   --app frontend:web:next:uses=api \
   --app backend:api:nest \
@@ -92,8 +92,8 @@ Each app ships a Dockerfile, and every workspace package has `build`, `dev`, `li
 From the root of a generated repo:
 
 ```bash
-npx octorepo add app backend billing nest
-npx octorepo add app frontend admin react-vite --uses api,billing
+npx @oct8/octorepo add app backend billing nest
+npx @oct8/octorepo add app frontend admin react-vite --uses api,billing
 ```
 
 `add` regenerates only tool-owned files (root `package.json` merge, workspace file, `turbo.json`/`nx.json`, compose, clients, `src/generated/**`); your own code is never rewritten.
