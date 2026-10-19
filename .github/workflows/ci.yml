@@ -24,6 +24,15 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm vitest run
+      # The published tarball (prepack builds dist/) must run on its own.
+      - name: Packaged CLI smoke
+        run: |
+          pnpm pack --pack-destination "$RUNNER_TEMP/pack"
+          mkdir -p "$RUNNER_TEMP/smoke"
+          cd "$RUNNER_TEMP/smoke"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund "$RUNNER_TEMP"/pack/octorepo-*.tgz
+          npx octorepo create "$RUNNER_TEMP/smoke/x" --tool turbo --app backend:api:express --no-install --no-git --json
 
   matrix:
     runs-on: ubuntu-latest

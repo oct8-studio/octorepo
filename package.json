@@ -35,10 +35,11 @@
     "dist"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   },
   "scripts": {
     "build": "tsdown",
+    "prepack": "pnpm build",
     "test": "vitest run",
     "lint": "biome check",
     "typecheck": "tsc --noEmit"
