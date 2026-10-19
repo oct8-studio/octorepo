@@ -209,4 +209,25 @@ describe('runAddApp', () => {
     )
     expect(after).toEqual(before)
   })
+
+  it('adds the first SvelteKit frontend to a React repo: creates ui-svelte, ui-react byte-identical', async () => {
+    const uiDir = join(root, 'packages/ui-react')
+    const snapshot = async () =>
+      Promise.all((await list(uiDir)).map(async (f) => [f, await read(uiDir, f).catch(() => '')]))
+    const before = await snapshot()
+    await runAddApp(
+      {
+        cwd: root,
+        json: true,
+        app: { name: 'blog', kind: 'frontend', framework: 'sveltekit', uses: ['api'] },
+      },
+      reg,
+    )
+    expect(JSON.parse(await read(root, 'packages/ui-svelte/package.json')).name).toBe(
+      '@demo/ui-svelte',
+    )
+    expect(existsSync(join(root, 'packages/ui-svelte/src/Card.svelte'))).toBe(true)
+    expect(existsSync(join(root, 'apps/blog/src/routes/+page.svelte'))).toBe(true)
+    expect(await snapshot()).toEqual(before)
+  })
 })

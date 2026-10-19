@@ -6,7 +6,8 @@
  * Generates the stack into a temp dir with install on, then runs lint, typecheck, test, build and a
  * `docker build` per app. With --dev it first runs `pnpm dev` on the fresh repo (nothing built yet)
  * and checks every app answers like it would for a developer, then kills the whole process tree.
- * With --compose it also boots docker compose and checks /health, the Next page HTML and Vite CORS.
+ * With --compose it also boots docker compose and checks /health, every SSR page's HTML and SPA CORS.
+ * Lint runs after the post-install `biome check --write`, so formatting can't hide a broken template.
  */
 import { type ChildProcess, spawn } from 'node:child_process'
 import { appendFileSync, openSync } from 'node:fs'
@@ -211,8 +212,11 @@ async function devSmoke(stack: StackConfig, root: string, logPath: string): Prom
         }, 120_000)
       } else {
         // Vite resolves and transforms these on request, so they fail if a workspace import is missing.
-        await get(`${origin}/`)
-        await get(`${origin}/src/App.tsx`)
+        const html = await get(`${origin}/`)
+        const entry = /<script type="module" src="([^"]+)"/.exec(html.body)?.[1]
+        if (!entry) throw new Error(`${fe.name} index.html has no module entry`)
+        await get(`${origin}${entry}`)
+        await get(`${origin}/src/${SPA_ROOT_COMPONENT[fe.framework] ?? 'App.tsx'}`)
         await get(`${origin}/src/generated/api.ts`)
         for (const b of uses) {
           const res = await get(`http://localhost:${b.port}/hello`, { headers: { Origin: origin } })
@@ -227,6 +231,31 @@ async function devSmoke(stack: StackConfig, root: string, logPath: string): Prom
     throw e
   } finally {
     await killTree(child, ports)
+  }
+}
+
+/** The root component Vite must transform for each SPA framework. */
+const SPA_ROOT_COMPONENT: Record<string, string> = {
+  'react-vite': 'App.tsx',
+  'vue-vite': 'App.vue',
+}
+
+/** The image's runtime user must not be root (Dockerfiles set USER or use a non-root base image). */
+async function assertNonRoot(tag: string, root: string): Promise<void> {
+  const user = await new Promise<string>((done, fail) => {
+    const p = spawn('docker', ['image', 'inspect', '-f', '{{.Config.User}}', tag], {
+      cwd: root,
+      stdio: ['ignore', 'pipe', 'inherit'],
+    })
+    let out = ''
+    p.stdout.on('data', (d) => {
+      out += d
+    })
+    p.on('error', fail)
+    p.on('close', () => done(out.trim()))
+  })
+  if (user === '' || user === 'root' || user === '0' || user.startsWith('0:')) {
+    throw new Error(`${tag} runs as root (User="${user}")`)
   }
 }
 
@@ -304,6 +333,7 @@ async function main(): Promise<number> {
       await step(`docker build ${app.name}`, async () => {
         await sh('docker', ['build', '-f', `apps/${app.name}/Dockerfile`, '-t', tag, '.'], root)
         images.push(tag)
+        await assertNonRoot(tag, root)
       })
     }
 

@@ -63,7 +63,7 @@ jobs:
           node-version: 24
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
-      # --dev: `pnpm dev` on the fresh repo must serve every app (turbo and nx combos).
+      # --dev: `pnpm dev` on the fresh repo must serve every app (all 30 combos, turbo and nx).
       - run: pnpm tsx scripts/e2e.ts ${{ matrix.combo }} --dev
 
   fixture:
@@ -78,3 +78,17 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm tsx scripts/e2e.ts --fixture fixtures/full.json --dev --compose
+
+  # Two frontends of different UI families (Vue, Svelte, Solid + Astro) sharing two backends.
+  fixture-families:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tsx scripts/e2e.ts --fixture fixtures/families.json --dev --compose

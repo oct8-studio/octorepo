@@ -1,9 +1,22 @@
 import { uiPackageFiles } from '../engine/ui'
+import { uiSolidPackageFiles } from '../engine/ui-solid'
+import { uiSveltePackageFiles } from '../engine/ui-svelte'
+import { uiVuePackageFiles } from '../engine/ui-vue'
 import type { AppKind, MonorepoTool } from '../model/stack'
 import { expressPlugin } from './backend/express'
+import { fastifyPlugin } from './backend/fastify'
+import { honoPlugin } from './backend/hono'
+import { koaPlugin } from './backend/koa'
 import { nestPlugin } from './backend/nest'
+import { astroPlugin } from './frontend/astro'
 import { nextPlugin } from './frontend/next'
+import { nuxtPlugin } from './frontend/nuxt'
+import { reactRouterPlugin } from './frontend/react-router'
 import { reactVitePlugin } from './frontend/react-vite'
+import { solidStartPlugin } from './frontend/solid-start'
+import { sveltekitPlugin } from './frontend/sveltekit'
+import { tanstackStartPlugin } from './frontend/tanstack-start'
+import { vueVitePlugin } from './frontend/vue-vite'
 import { nxPlugin } from './monorepo/nx'
 import { turboPlugin } from './monorepo/turbo'
 import { postgresPlugin } from './service/postgres'
@@ -71,9 +84,22 @@ export function defaultRegistry(): Registry {
     .registerMonorepo(nxPlugin)
     .registerFramework(expressPlugin)
     .registerFramework(nestPlugin)
+    .registerFramework(fastifyPlugin)
+    .registerFramework(honoPlugin)
+    .registerFramework(koaPlugin)
     .registerFramework(reactVitePlugin)
     .registerFramework(nextPlugin)
+    .registerFramework(vueVitePlugin)
+    .registerFramework(nuxtPlugin)
+    .registerFramework(sveltekitPlugin)
+    .registerFramework(astroPlugin)
+    .registerFramework(tanstackStartPlugin)
+    .registerFramework(reactRouterPlugin)
+    .registerFramework(solidStartPlugin)
     .registerService(postgresPlugin)
     .registerService(redisPlugin)
     .registerUi('react', (ctx) => uiPackageFiles(ctx, 'react'))
+    .registerUi('vue', uiVuePackageFiles)
+    .registerUi('svelte', uiSveltePackageFiles)
+    .registerUi('solid', uiSolidPackageFiles)
 }

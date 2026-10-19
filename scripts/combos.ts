@@ -8,32 +8,48 @@ export interface Combo {
 const FRONTENDS = ['next', 'react-vite'] as const
 const BACKENDS = ['express', 'nest'] as const
 const TOOLS: MonorepoTool[] = ['turbo', 'nx']
+const NEW_FRONTENDS = [
+  'vue-vite',
+  'nuxt',
+  'sveltekit',
+  'astro',
+  'tanstack-start',
+  'react-router',
+  'solid-start',
+] as const
+const NEW_BACKENDS = ['fastify', 'hono', 'koa'] as const
 
 function stack(tool: MonorepoTool, apps: AppSpec[], services: string[]): StackConfig {
   return { name: 'e2e', monorepoTool: tool, packageManager: 'pnpm', apps, services }
 }
 
-/** Every frontend × backend × tool (one frontend using one backend + postgres), plus react-vite alone. */
-export const COMBOS: Combo[] = [
-  ...FRONTENDS.flatMap((fe) =>
-    BACKENDS.flatMap((be) =>
-      TOOLS.map((tool) => ({
-        id: `${fe}-${be}-${tool}`,
-        stack: stack(
-          tool,
-          [
-            { name: 'web', kind: 'frontend', framework: fe, uses: ['api'] },
-            { name: 'api', kind: 'backend', framework: be },
-          ],
-          ['postgres'],
-        ),
-      })),
+/** One frontend using one backend, plus postgres. */
+function pair(fe: string, be: string, tool: MonorepoTool): Combo {
+  return {
+    id: `${fe}-${be}-${tool}`,
+    stack: stack(
+      tool,
+      [
+        { name: 'web', kind: 'frontend', framework: fe, uses: ['api'] },
+        { name: 'api', kind: 'backend', framework: be },
+      ],
+      ['postgres'],
     ),
-  ),
+  }
+}
+
+/**
+ * Plan 1's full frontend × backend × tool grid plus react-vite alone; then each newer frontend with
+ * hono on turbo and express on nx, and each newer backend behind react-vite on turbo and next on nx.
+ */
+export const COMBOS: Combo[] = [
+  ...FRONTENDS.flatMap((fe) => BACKENDS.flatMap((be) => TOOLS.map((tool) => pair(fe, be, tool)))),
   ...TOOLS.map((tool) => ({
     id: `react-vite-${tool}`,
     stack: stack(tool, [{ name: 'web', kind: 'frontend', framework: 'react-vite' }], []),
   })),
+  ...NEW_FRONTENDS.flatMap((fe) => [pair(fe, 'hono', 'turbo'), pair(fe, 'express', 'nx')]),
+  ...NEW_BACKENDS.flatMap((be) => [pair('react-vite', be, 'turbo'), pair('next', be, 'nx')]),
 ]
 
 export function findCombo(id: string): Combo | undefined {

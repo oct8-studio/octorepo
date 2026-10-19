@@ -129,8 +129,10 @@ describe('generateProject', () => {
           stack.apps[1] as StackConfig['apps'][number],
         ],
       }
-      expect(() => generateProject(bad, reg())).toThrow(CliError)
-      expect(() => generateProject(bad, reg())).toThrow(/solid/)
+      const noSolid = reg()
+      noSolid.uiPackages.delete('solid')
+      expect(() => generateProject(bad, noSolid)).toThrow(CliError)
+      expect(() => generateProject(bad, noSolid)).toThrow(/solid/)
     })
   })
 })
