@@ -1,0 +1,14 @@
+{
+  "name": "octorepo",
+  "displayName": "octorepo",
+  "version": "0.1.0",
+  "description": "Scaffold and extend pnpm monorepos (Turborepo or Nx) with frontends, backends, typed API clients and Docker Compose, through the octorepo MCP server",
+  "author": {
+    "name": "oct8 studio",
+    "url": "https://github.com/oct8-studio"
+  },
+  "homepage": "https://github.com/oct8-studio/octorepo#readme",
+  "repository": "https://github.com/oct8-studio/octorepo",
+  "license": "MIT",
+  "keywords": ["monorepo", "scaffold", "turborepo", "nx", "pnpm", "mcp"]
+}
