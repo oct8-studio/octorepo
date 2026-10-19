@@ -2,8 +2,10 @@ import { readFile } from 'node:fs/promises'
 import { basename, relative, resolve } from 'node:path'
 import { select, text } from '@clack/prompts'
 import { Command } from 'commander'
-import { runAddApp } from './commands/add-app'
+import { readManifest, runAddApp } from './commands/add-app'
 import { runCreate } from './commands/create'
+import { parseAppFlag, parseUses } from './commands/flags'
+import { answer, appNameValidator } from './commands/prompts'
 import { CLI_NAME, CLI_VERSION } from './meta'
 import { CliError, formatError } from './model/errors'
 import { type AppKind, type AppSpec, parseStackConfig, type StackConfig } from './model/stack'
@@ -22,21 +24,6 @@ interface CreateFlags {
 }
 
 const collect = (value: string, prev: string[]) => [...prev, value]
-
-/** `kind:name:framework[:uses=a,b]` */
-function parseAppFlag(spec: string): AppSpec {
-  const [kind, name, framework, ...rest] = spec.split(':')
-  if (!kind || !name || !framework) {
-    throw new CliError(`Invalid --app "${spec}". Expected kind:name:framework[:uses=a,b]`)
-  }
-  const app = { kind, name, framework } as AppSpec
-  for (const part of rest) {
-    const [key, value = ''] = part.split('=')
-    if (key !== 'uses') throw new CliError(`Invalid --app option "${part}" in "${spec}"`)
-    app.uses = value.split(',').filter(Boolean)
-  }
-  return app
-}
 
 async function stackFromFlags(dir: string | undefined, flags: CreateFlags): Promise<StackConfig> {
   let base: Partial<StackConfig> = {}
@@ -99,11 +86,6 @@ interface AddAppFlags {
   json?: boolean
 }
 
-function ask<T>(value: T): Exclude<T, symbol> {
-  if (typeof value === 'symbol') throw new CliError('Cancelled')
-  return value as Exclude<T, symbol>
-}
-
 async function addApp(
   kindArg: string | undefined,
   nameArg: string | undefined,
@@ -116,7 +98,7 @@ async function addApp(
     throw new CliError('Usage: add app <kind> <name> <framework>')
   }
   const kind = (kindArg ??
-    ask(
+    answer(
       await select<AppKind>({
         message: 'App kind',
         options: [{ value: 'backend' }, { value: 'frontend' }],
@@ -125,10 +107,24 @@ async function addApp(
   if (kind !== 'frontend' && kind !== 'backend') {
     throw new CliError(`Invalid kind "${kind}". Expected frontend or backend`)
   }
-  const name = nameArg ?? ask(await text({ message: 'App name', placeholder: 'api' }))
+  let name = nameArg
+  if (name === undefined) {
+    // Validate inline against the repo's apps; runAddApp reports a missing manifest itself.
+    const existing = await readManifest(process.cwd()).then(
+      (m) => m.apps,
+      () => [],
+    )
+    name = answer(
+      await text({
+        message: 'App name',
+        placeholder: 'api',
+        validate: appNameValidator(kind, existing),
+      }),
+    )
+  }
   const framework =
     frameworkArg ??
-    ask(
+    answer(
       await select<string>({
         message: 'Framework',
         options: reg.frameworksOf(kind).map((p) => ({ value: p.id, label: p.label })),
@@ -138,9 +134,9 @@ async function addApp(
   if (flags.apiStyle) app.apiStyle = flags.apiStyle
   let uses = flags.uses
   if (kind === 'frontend' && uses === undefined && interactive) {
-    uses = ask(await text({ message: 'Backends to use (comma-separated)', defaultValue: '' }))
+    uses = answer(await text({ message: 'Backends to use (comma-separated)', defaultValue: '' }))
   }
-  if (uses !== undefined) app.uses = uses.split(',').filter(Boolean)
+  if (uses !== undefined) app.uses = parseUses(uses)
   const result = await runAddApp(
     { cwd: process.cwd(), app, json: Boolean(flags.json), install: flags.install },
     reg,
@@ -186,6 +182,6 @@ try {
   await program.parseAsync()
 } catch (e) {
   const { text, exitCode } = formatError(e, process.env.OCTOREPO_DEBUG === '1')
-  process.stderr.write(`${text}\n`)
+  if (text) process.stderr.write(`${text}\n`)
   process.exitCode = exitCode
 }

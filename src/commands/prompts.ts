@@ -1,18 +1,31 @@
 import { cancel, confirm, intro, isCancel, multiselect, note, select, text } from '@clack/prompts'
 import { CLI_NAME } from '../meta'
-import { CliError } from '../model/errors'
+import { CancelledError, CliError } from '../model/errors'
 import type { AppKind, AppSpec, MonorepoTool, StackConfig } from '../model/stack'
 import type { Registry } from '../plugins/registry'
-import { type Issue, validateStack } from '../rules'
+import { appNameProblem, type Issue, validateStack } from '../rules'
 
 const NAME_RE = /^[a-z][a-z0-9-]*$/
 
-function answer<T>(value: T): Exclude<T, symbol> {
+/** Unwraps a prompt result; on cancel prints "Cancelled." once and throws a silent CancelledError. */
+export function answer<T>(value: T): Exclude<T, symbol> {
   if (isCancel(value)) {
     cancel('Cancelled.')
-    throw new CliError('Cancelled')
+    throw new CancelledError()
   }
   return value as Exclude<T, symbol>
+}
+
+/** Inline validator for an app-name prompt: the same name rules validateStack applies. */
+export function appNameValidator(
+  kind: AppKind,
+  existing: Pick<AppSpec, 'name' | 'kind'>[],
+): (value: string | undefined) => string | undefined {
+  return (value) => {
+    const name = value ?? ''
+    const problem = appNameProblem({ name, kind }, existing)
+    return problem ? `"${name}" ${problem}` : undefined
+  }
 }
 
 function describeApp(app: AppSpec): string {
@@ -29,12 +42,16 @@ function list(title: string, issues: Issue[]): string[] {
 }
 
 /** Interactive create flow (spec §5.1): name, tool, apps loop, frontend links, services, review. */
-export async function promptForStack(reg: Registry): Promise<StackConfig> {
+export async function promptForStack(
+  reg: Registry,
+  opts: { defaultName?: string } = {},
+): Promise<StackConfig> {
   intro(CLI_NAME)
   const name = answer(
     await text({
       message: 'Project name',
       placeholder: 'acme',
+      ...(opts.defaultName ? { initialValue: opts.defaultName } : {}),
       validate: (v) => (NAME_RE.test(v ?? '') ? undefined : 'Use lowercase letters, digits and -'),
     }),
   )
@@ -62,11 +79,7 @@ export async function promptForStack(reg: Registry): Promise<StackConfig> {
       await text({
         message: `${kind === 'backend' ? 'Backend' : 'Frontend'} name`,
         placeholder: kind === 'backend' ? 'api' : 'web',
-        validate: (v) => {
-          if (!NAME_RE.test(v ?? '')) return 'Use lowercase letters, digits and -'
-          if (apps.some((a) => a.name === v)) return 'An app with this name already exists'
-          return undefined
-        },
+        validate: appNameValidator(kind, apps),
       }),
     )
     const plugins = reg.frameworksOf(kind)
@@ -130,7 +143,7 @@ export async function promptForStack(reg: Registry): Promise<StackConfig> {
   if (v.errors.length) throw new CliError(v.errors.map((e) => e.message).join('\n'))
   if (!answer(await confirm({ message: 'Generate this project?' }))) {
     cancel('Cancelled.')
-    throw new CliError('Cancelled')
+    throw new CancelledError()
   }
   return stack
 }

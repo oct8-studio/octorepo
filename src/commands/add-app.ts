@@ -45,7 +45,7 @@ function isToolOwned(path: string): boolean {
   )
 }
 
-async function readManifest(root: string): Promise<StackConfig> {
+export async function readManifest(root: string): Promise<StackConfig> {
   let raw: string
   try {
     raw = await readFile(join(root, MANIFEST), 'utf8')

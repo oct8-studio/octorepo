@@ -1,4 +1,4 @@
-import { resolve } from 'node:path'
+import { basename, resolve } from 'node:path'
 import { generateProject } from '../engine/generate'
 import { writeTree } from '../engine/write'
 import { CliError } from '../model/errors'
@@ -28,7 +28,8 @@ export interface CreateResult {
 
 /** validate → generate → write → post-steps. Nothing is written if the stack has errors. */
 export async function runCreate(opts: CreateOptions, reg: Registry): Promise<CreateResult> {
-  const config = opts.config ?? (await promptForStack(reg))
+  const defaultName = opts.dir ? basename(resolve(opts.cwd, opts.dir)) : undefined
+  const config = opts.config ?? (await promptForStack(reg, { defaultName }))
   const { stack, errors, warnings, fixes } = validateStack(config, reg)
   if (errors.length) {
     throw new CliError(`Invalid stack:\n${errors.map((e) => `  - ${e.message}`).join('\n')}`)
