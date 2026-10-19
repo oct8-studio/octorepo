@@ -49,7 +49,9 @@ export default defineComponent({
     .map(
       (b) => `async function load${pascalCase(b.name)}(): Promise<string> {
   try {
-    const { data } = await ${clientVar(b)}.GET('/hello')
+    // Bounded, so a hanging backend shows "unreachable" instead of loading forever.
+    const signal = AbortSignal.timeout(3000)
+    const { data } = await ${clientVar(b)}.GET('/hello', { signal })
     return data?.message ?? 'Backend unreachable'
   } catch {
     return 'Backend unreachable'

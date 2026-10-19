@@ -1,3 +1,4 @@
+import { helloCall } from '../../../engine/client'
 import { PNPM_BUILD_STAGE } from '../../../engine/docker'
 import { camelCase, pascalCase, upperSnake } from '../../../engine/names'
 import { json, readPluginFiles } from '../../../engine/tree'
@@ -49,19 +50,18 @@ ${clients.join('\n')}
 
 function pageServerFile(ctx: AppContext): string {
   const backends = [...ctx.backends].sort(byName)
-  const calls = backends
-    .map((b) => `    hello('${b.name}', () => ${clientVar(b)}.GET('/hello')),`)
-    .join('\n')
+  const calls = backends.map((b) => helloCall(b.name, clientVar(b))).join('\n')
   return `import { ${backends.map(clientVar).join(', ')} } from '../generated/api'
 import { type BackendResult, toCard } from '../lib/cards'
 import type { PageServerLoad } from './$types'
 
 async function hello(
   name: string,
-  call: () => Promise<{ data?: { message: string }; error?: unknown }>,
+  call: (signal: AbortSignal) => Promise<{ data?: { message: string }; error?: unknown }>,
 ): Promise<BackendResult> {
   try {
-    const { data, error } = await call()
+    // Bounded, so a hanging backend renders "unreachable" instead of stalling the page.
+    const { data, error } = await call(AbortSignal.timeout(3000))
     return { name, data, error }
   } catch (error) {
     return { name, error }

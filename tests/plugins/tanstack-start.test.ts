@@ -55,7 +55,9 @@ describe('tanstackStartPlugin', () => {
     expect(r).toContain("from '@acme/ui-react'")
     expect(r).toContain("createServerFn({ method: 'GET' })")
     expect(r).toContain('loader: () => loadCards()')
-    expect(r).toContain("hello('billing-api', () => billingApiClient.GET('/hello'))")
+    expect(r).toContain(
+      "hello('billing-api', (signal) => billingApiClient.GET('/hello', { signal }))",
+    )
     expect(r).toContain("from '../generated/api'")
   })
   it('generates package.json with workspace deps and pinned versions', () => {

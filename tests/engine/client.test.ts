@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { restClientFiles } from '../../src/engine/client'
+import { helloCall, restClientFiles } from '../../src/engine/client'
 import type { ProjectContext } from '../../src/plugins/types'
 import { VERSIONS } from '../../src/versions'
 
@@ -43,5 +43,19 @@ describe('restClientFiles', () => {
     const src = tree['packages/api-client/src/index.ts'] as string
     expect(src).toContain('export function createClient')
     expect(src).toContain('createOpenApiClient<paths>')
+  })
+})
+
+describe('helloCall', () => {
+  it('passes the abort signal on one line when it fits', () => {
+    expect(helloCall('api', 'apiClient')).toBe(
+      "    hello('api', (signal) => apiClient.GET('/hello', { signal })),",
+    )
+  })
+  it('wraps like biome past 100 columns', () => {
+    const line = helloCall('billing-apiz', 'billingApizClient', "cache: 'no-store', signal")
+    expect(line).toBe(
+      "    hello('billing-apiz', (signal) =>\n      billingApizClient.GET('/hello', { cache: 'no-store', signal }),\n    ),",
+    )
   })
 })
