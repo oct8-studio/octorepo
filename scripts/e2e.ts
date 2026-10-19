@@ -1,12 +1,13 @@
 /**
  * End-to-end check of a generated repo (Task 14 quality gate).
  *
- *   pnpm tsx scripts/e2e.ts <comboId | --fixture path> [--dev] [--compose] [--keep]
+ *   pnpm tsx scripts/e2e.ts <comboId | --fixture path> [--dev] [--compose] [--keep] [--no-docker]
  *
  * Generates the stack into a temp dir with install on, then runs lint, typecheck, test, build and a
  * `docker build` per app. With --dev it first runs `pnpm dev` on the fresh repo (nothing built yet)
  * and checks every app answers like it would for a developer, then kills the whole process tree.
  * With --compose it also boots docker compose and checks /health, every SSR page's HTML and SPA CORS.
+ * --no-docker skips the image builds (local use when no Docker engine is available; CI never passes it).
  * Lint runs after the post-install `biome check --write`, so formatting can't hide a broken template.
  */
 import { type ChildProcess, spawn } from 'node:child_process'
@@ -265,7 +266,9 @@ function parseArgs(argv: string[]): {
   compose: boolean
   dev: boolean
   keep: boolean
+  docker: boolean
 } {
+  const docker = !argv.includes('--no-docker')
   const compose = argv.includes('--compose')
   const dev = argv.includes('--dev')
   const keep = argv.includes('--keep')
@@ -279,15 +282,23 @@ function parseArgs(argv: string[]): {
       compose,
       dev,
       keep,
+      docker,
     }
   }
   const id = argv.find((a) => !a.startsWith('--'))
   const combo = id ? findCombo(id) : undefined
   if (!combo)
     throw new Error(
-      `Usage: e2e.ts <comboId | --fixture path> [--dev] [--compose] [--keep] (got "${id ?? ''}")`,
+      `Usage: e2e.ts <comboId | --fixture path> [--dev] [--compose] [--keep] [--no-docker] (got "${id ?? ''}")`,
     )
-  return { label: combo.id, load: async () => structuredClone(combo.stack), compose, dev, keep }
+  return {
+    label: combo.id,
+    load: async () => structuredClone(combo.stack),
+    compose,
+    dev,
+    keep,
+    docker,
+  }
 }
 
 async function main(): Promise<number> {
@@ -296,6 +307,7 @@ async function main(): Promise<number> {
   const config = await args.load()
   const { stack, errors } = validateStack(config, reg)
   if (errors.length) throw new Error(`Invalid stack: ${errors.map((e) => e.message).join('; ')}`)
+  if (args.compose && !args.docker) throw new Error('--compose needs docker; drop --no-docker')
 
   const tmp = await mkdtemp(join(tmpdir(), 'octorepo-e2e-'))
   const root = join(tmp, stack.name)
@@ -328,7 +340,7 @@ async function main(): Promise<number> {
     for (const task of ['lint', 'typecheck', 'test', 'build']) {
       await step(task, () => sh('pnpm', [task], root))
     }
-    for (const app of stack.apps) {
+    for (const app of args.docker ? stack.apps : []) {
       const tag = `${project}-${app.name}`
       await step(`docker build ${app.name}`, async () => {
         await sh('docker', ['build', '-f', `apps/${app.name}/Dockerfile`, '-t', tag, '.'], root)
