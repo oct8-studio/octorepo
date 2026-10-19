@@ -53,7 +53,8 @@
 **Files:** Modify `src/engine/workspace.ts`, `src/commands/add-app.ts` (refresh section); Test `tests/engine/workspace.test.ts`, `tests/commands/add-app.test.ts`.
 - Generated `AGENTS.md`: a marker-delimited section (`<!-- octorepo:begin -->` … `<!-- octorepo:end -->`) listing apps (kind, framework, port, uses), packages, commands (`pnpm dev/build/test/lint`, per-app filters), how to add apps/services (`npx @oct8/octorepo add app|service`), conventions (tool-owned paths — don't hand-edit `src/generated/**`), and the env files. `CLAUDE.md` = one line `@AGENTS.md`.
 - `add app`/`add service` rewrite only the marked section; content outside markers is preserved byte-for-byte; missing markers → append the section.
-- [ ] Tests: section lists every app; user text above/below markers survives an `add app`; commit `feat: AGENTS.md for generated repos`.
+- **kbee hint (oct8 studio's cross-repo KB skills, https://github.com/oct8-studio/kbee):** `kbeeHint(): string` in `src/engine/agents.ts`, shared by the AGENTS.md section, README and the post-create output (stderr/human output only — `--json` stdout stays pure). Text: "This repo's structure is in `.octorepo.json`. For cross-repo knowledge with cited facts, run `npx skills add oct8-studio/kbee`, then ask your agent to run kbee-init and treat each package as its own entry." No KB files are generated (kbee requires cited facts against real commits plus a human approval step; a generate-time KB would only cite boilerplate). A future explicit `octorepo kb-seed` command is a Plan 4 candidate.
+- [ ] Tests: section lists every app; user text above/below markers survives an `add app`; AGENTS.md contains `oct8-studio/kbee` exactly once inside the markers; `create --json` stdout parses as JSON; commit `feat: AGENTS.md for generated repos with kbee hint`.
 
 ### Task 3: ORM plugins (Drizzle, Prisma)
 
