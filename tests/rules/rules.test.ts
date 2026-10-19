@@ -109,6 +109,28 @@ describe('validateStack', () => {
     expect(appNameProblem({ name: 'api', kind: 'backend' }, [fe('web')])).toBeUndefined()
   })
 
+  it('rejects app names equal to any registered service id (compose key collision)', () => {
+    for (const id of reg.services.keys()) {
+      // Not only the services in use: `add service` may add the service later.
+      const r = validateStack(stack([be(id)]), reg)
+      const errs = r.errors.filter((e) => e.rule === 'app-name-valid')
+      expect(
+        errs.map((e) => e.app),
+        id,
+      ).toEqual([id])
+      expect(errs[0]?.message).toContain(`collides with the compose service "${id}"`)
+      expect(
+        appNameProblem({ name: id, kind: 'backend' }, [], undefined, reg.services.keys()),
+      ).toBe(`collides with the compose service "${id}"`)
+    }
+    expect(appNameProblem({ name: 'migrate', kind: 'backend' }, [], 'drizzle')).toContain(
+      'migration service',
+    )
+    expect(appNameProblem({ name: 'db', kind: 'backend' }, [], 'prisma')).toContain(
+      'shared database package',
+    )
+  })
+
   it('flags invalid project name', () => {
     const r = validateStack(stack([be('api')], { name: 'Bad Name' }), reg)
     expect(r.errors.some((e) => e.rule === 'app-name-valid' && !e.app)).toBe(true)

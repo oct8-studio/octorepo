@@ -17,15 +17,20 @@ export function answer<T>(value: T): Exclude<T, symbol> {
   return value as Exclude<T, symbol>
 }
 
-/** Inline validator for an app-name prompt: the same name rules validateStack applies. */
+/**
+ * Inline validator for an app-name prompt: the same name rules validateStack applies,
+ * including the registry's compose service ids.
+ */
 export function appNameValidator(
   kind: AppKind,
   existing: Pick<AppSpec, 'name' | 'kind'>[],
-  orm?: string,
+  orm: string | undefined,
+  serviceIds: Iterable<string>,
 ): (value: string | undefined) => string | undefined {
+  const ids = [...serviceIds]
   return (value) => {
     const name = value ?? ''
-    const problem = appNameProblem({ name, kind }, existing, orm)
+    const problem = appNameProblem({ name, kind }, existing, orm, ids)
     return problem ? `"${name}" ${problem}` : undefined
   }
 }
@@ -99,7 +104,7 @@ export async function promptForStack(
       await text({
         message: `${kind === 'backend' ? 'Backend' : 'Frontend'} name`,
         placeholder: kind === 'backend' ? 'api' : 'web',
-        validate: appNameValidator(kind, apps),
+        validate: appNameValidator(kind, apps, seeded?.orm, reg.services.keys()),
       }),
     )
     const plugins = reg.frameworksOf(kind)

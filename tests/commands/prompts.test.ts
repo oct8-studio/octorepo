@@ -51,6 +51,7 @@ describe('promptForStack', () => {
     expect(validate('api')).toContain('duplicate')
     expect(validate('types')).toContain('reserved')
     expect(validate('admin')).toBeUndefined()
+    expect(validate('postgres')).toContain('compose service "postgres"')
   })
 
   it('asks about presets first and seeds apps, services and orm from the choice', async () => {
@@ -74,6 +75,19 @@ describe('promptForStack', () => {
     ])
   })
 
+  it("validates extra app names against the preset's ORM (db/migrate reserved inline)", async () => {
+    clack.select
+      .mockResolvedValueOnce('saas')
+      .mockResolvedValueOnce('turbo')
+      .mockResolvedValueOnce('backend')
+    clack.text.mockResolvedValueOnce('acme').mockResolvedValueOnce(Symbol('cancel'))
+    await expect(promptForStack(defaultRegistry())).rejects.toBeInstanceOf(CancelledError)
+    const validate = clack.text.mock.calls[1]?.[0].validate as (v: string) => string | undefined
+    expect(validate('migrate')).toContain('migration service')
+    expect(validate('db')).toContain('shared database package')
+    expect(validate('api')).toContain('duplicate')
+  })
+
   it('prints the cancel message once and throws a silent CancelledError', async () => {
     clack.select.mockResolvedValueOnce('none')
     clack.text.mockResolvedValueOnce(Symbol('cancel'))
@@ -86,9 +100,17 @@ describe('promptForStack', () => {
 
 describe('appNameValidator', () => {
   it('checks a new backend against existing apps both ways', () => {
-    const v = appNameValidator('backend', [{ name: 'api-client', kind: 'frontend' }])
+    const v = appNameValidator('backend', [{ name: 'api-client', kind: 'frontend' }], undefined, [])
     expect(v('api')).toContain('collides with app "api-client"')
     expect(v('billing')).toBeUndefined()
     expect(v('Bad')).toContain('must match')
+  })
+
+  it('rejects registered service ids and, with an ORM, db/migrate', () => {
+    const v = appNameValidator('backend', [], 'drizzle', defaultRegistry().services.keys())
+    expect(v('mailpit')).toBe('"mailpit" collides with the compose service "mailpit"')
+    expect(v('redis')).toContain('compose service')
+    expect(v('migrate')).toContain('migration service')
+    expect(v('db')).toContain('shared database package')
   })
 })

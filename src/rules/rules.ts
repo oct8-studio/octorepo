@@ -50,18 +50,33 @@ function generatedPackages(apps: NamedApp[], orm?: string): Map<string, string> 
 }
 
 /**
- * Why `app` cannot join `existing` (format, reserved, duplicate or a clash with a generated
- * package name), or undefined. Prompts use it to validate names inline with validateStack's rules.
+ * Apps share docker-compose.yml with the services, keyed by name, so an app named like any
+ * registered service (used or not, since `add service` may add it later) would replace it.
+ */
+function serviceClash(name: string, serviceIds: Iterable<string>): string | undefined {
+  for (const id of serviceIds) {
+    if (id === name) return `collides with the compose service "${id}"`
+  }
+  return undefined
+}
+
+/**
+ * Why `app` cannot join `existing` (format, reserved, duplicate, a registered compose service
+ * id or a clash with a generated package name), or undefined. Prompts use it to validate names
+ * inline with validateStack's rules; pass the registry's service ids as `serviceIds`.
  */
 export function appNameProblem(
   app: NamedApp,
   existing: NamedApp[],
   orm?: string,
+  serviceIds: Iterable<string> = [],
 ): string | undefined {
   const problem = nameProblem(app.name)
   if (problem) return problem
   const key = app.name.toLowerCase()
   if (existing.some((e) => e.name.toLowerCase() === key)) return 'is a duplicate app name'
+  const service = serviceClash(app.name, serviceIds)
+  if (service) return service
   if (orm && app.name === MIGRATE_SERVICE) return 'is reserved for the database migration service'
   const generated = generatedPackages([...existing, app], orm).get(app.name)
   if (generated) return `collides with the generated package ${app.name} (${generated})`
@@ -80,7 +95,7 @@ const atLeastOneApp: Rule = {
 
 const appNameValid: Rule = {
   id: 'app-name-valid',
-  check: (stack) => {
+  check: (stack, reg) => {
     const issues: Issue[] = []
     if (!NAME_RE.test(stack.name)) {
       issues.push(
@@ -96,6 +111,7 @@ const appNameValid: Rule = {
       const problem =
         nameProblem(app.name) ??
         (seen.has(key) ? 'is a duplicate app name' : undefined) ??
+        serviceClash(app.name, reg.services.keys()) ??
         (stack.orm && app.name === MIGRATE_SERVICE
           ? 'is reserved for the database migration service'
           : undefined) ??

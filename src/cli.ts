@@ -131,7 +131,7 @@ async function addApp(
       await text({
         message: 'App name',
         placeholder: 'api',
-        validate: appNameValidator(kind, existing?.apps ?? [], existing?.orm),
+        validate: appNameValidator(kind, existing?.apps ?? [], existing?.orm, reg.services.keys()),
       }),
     )
   }

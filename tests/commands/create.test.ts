@@ -84,6 +84,33 @@ describe('cli create --preset', () => {
   })
 })
 
+describe('cli create --app named like a service', () => {
+  it('rejects an app named like a registered service id and writes nothing', async () => {
+    const tsx = join(process.cwd(), 'node_modules/.bin/tsx')
+    const cli = join(process.cwd(), 'src/cli.ts')
+    const cwd = await mkdtemp(join(tmpdir(), 'octo-svcname-'))
+    await expect(
+      run(
+        tsx,
+        [
+          cli,
+          'create',
+          'x',
+          '--no-install',
+          '--no-git',
+          '--json',
+          '--tool',
+          'turbo',
+          '--app',
+          'backend:mailpit:hono',
+        ],
+        { cwd },
+      ),
+    ).rejects.toThrow(/App name "mailpit" collides with the compose service "mailpit"/)
+    expect(existsSync(join(cwd, 'x'))).toBe(false)
+  })
+})
+
 describe('cli create', () => {
   it('prints JSON only with --json', async () => {
     const cwd = await mkdtemp(join(tmpdir(), 'octo-cli-'))
