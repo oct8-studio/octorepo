@@ -1,5 +1,6 @@
 import { backendCorsDefaults } from '../../../engine/cors'
 import { nodeServiceDockerfile } from '../../../engine/docker'
+import { backendEnv } from '../../../engine/env'
 import { json, readPluginFiles } from '../../../engine/tree'
 import { backendDb } from '../../orm/shared'
 import type { AppContext, FileTree, FrameworkPlugin } from '../../types'
@@ -18,6 +19,7 @@ function generate(ctx: AppContext): FileTree {
   const dir = `apps/${app.name}`
   const cors = backendCorsDefaults(ctx)
   const db = backendDb(ctx)
+  const env = backendEnv(ctx)
   const files = readPluginFiles(new URL('./', import.meta.url), {
     name: app.name,
     scope,
@@ -29,6 +31,7 @@ function generate(ctx: AppContext): FileTree {
   const tree: FileTree = {}
   for (const [path, content] of Object.entries(files)) tree[`${dir}/${path}`] = content
   tree[`${dir}/src/generated/cors.ts`] = cors.file
+  tree[`${dir}/src/env.ts`] = env.file
   if (db) tree[`${dir}/src/db.ts`] = db.file
   tree[`${dir}/package.json`] = json({
     name: `${scope}/${app.name}`,
