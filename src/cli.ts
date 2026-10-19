@@ -4,10 +4,11 @@ import { select, text } from '@clack/prompts'
 import { Command } from 'commander'
 import { readManifest, runAddApp } from './commands/add-app'
 import { runAddService } from './commands/add-service'
-import { runCreate } from './commands/create'
+import { nextSteps, runCreate } from './commands/create'
 import { parseAppFlag, parseUses } from './commands/flags'
 import { formatOptions, listOptions } from './commands/options'
 import { answer, appNameValidator } from './commands/prompts'
+import { kbeeHint } from './engine/agents'
 import { CLI_NAME, CLI_VERSION } from './meta'
 import { CliError, formatError } from './model/errors'
 import { type AppKind, type AppSpec, parseStackConfig, type StackConfig } from './model/stack'
@@ -89,7 +90,10 @@ async function create(dir: string | undefined, flags: CreateFlags): Promise<void
   const rel = relative(process.cwd(), result.root)
   const cd = rel && !rel.startsWith('..') ? rel : result.root
   console.log(`\nCreated ${result.root}\n\nNext steps:`)
-  for (const cmd of [`cd ${cd}`, ...result.manual, 'pnpm dev']) console.log(`  ${cmd}`)
+  for (const line of nextSteps(cd, result.manual, await readManifest(result.root))) {
+    console.log(line ? `  ${line}` : '')
+  }
+  console.log(`\n${kbeeHint()}`)
 }
 
 interface AddAppFlags {

@@ -122,15 +122,34 @@ describe('workspaceFiles', () => {
     const orm = { ...manifest, orm: 'drizzle' as const }
     const agents = workspaceFiles({ ...ctx, stack: orm }, orm)['AGENTS.md'] as string
     expect(agents).toContain('packages/db')
-    expect(agents).toContain('packages/db/src/generated/**')
+    // Drizzle generates nothing under packages/db/src/generated; only Prisma's client lives there.
+    expect(agents).not.toContain('packages/db/src/generated/**')
     expect(agents).toContain('`db:migration`: create a migration')
     expect(agents).toContain('`db:migrate`: apply committed migrations')
     expect(agents).toContain('pnpm --filter @acme/db <script>')
     expect(agents).toContain('drizzle-kit generate')
     expect(agents).not.toContain('migrate, studio')
     const prisma = { ...manifest, orm: 'prisma' as const }
-    expect(workspaceFiles({ ...ctx, stack: prisma }, prisma)['AGENTS.md']).toContain(
-      'regenerate the Prisma Client',
-    )
+    const prismaAgents = workspaceFiles({ ...ctx, stack: prisma }, prisma)['AGENTS.md'] as string
+    expect(prismaAgents).toContain('regenerate the Prisma Client')
+    expect(prismaAgents).toContain(', `packages/db/src/generated/**`. Don')
+  })
+  it('README and AGENTS.md explain bringing up services and the database', () => {
+    const db = { ...manifest, services: ['postgres', 'valkey'], orm: 'drizzle' as const }
+    const files = workspaceFiles({ ...ctx, stack: db }, db)
+    for (const doc of [files['README.md'], files['AGENTS.md']] as string[]) {
+      expect(doc).toContain('Database & services')
+      expect(doc).toContain('`docker compose up -d postgres valkey`')
+      expect(doc).toContain('`pnpm --filter @acme/db db:migrate && pnpm --filter @acme/db db:seed`')
+      expect(doc).toContain(
+        '`docker compose up`: or run the full stack in containers (migrate runs automatically)',
+      )
+    }
+    const svc = { ...manifest, services: ['redis'] }
+    const plain = workspaceFiles({ ...ctx, stack: svc }, svc)['README.md'] as string
+    expect(plain).toContain('`docker compose up -d redis`')
+    expect(plain).not.toContain('db:migrate')
+    expect(tree['README.md']).not.toContain('Database & services')
+    expect(tree['AGENTS.md']).not.toContain('Database & services')
   })
 })

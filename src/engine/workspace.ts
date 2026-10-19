@@ -2,7 +2,7 @@ import { stringify } from 'yaml'
 import { MANIFEST_FILE } from '../meta'
 import type { Manifest } from '../model/stack'
 import type { ProjectContext } from '../plugins/types'
-import { agentsSection, CLAUDE_CONTENT, CLAUDE_FILE, kbeeHint } from './agents'
+import { agentsSection, CLAUDE_CONTENT, CLAUDE_FILE, databaseSection, kbeeHint } from './agents'
 import { type FileTree, json } from './tree'
 
 // Build output and generated dirs of every supported framework, so apps need no own .gitignore.
@@ -140,7 +140,7 @@ Each app reads local-development settings from its own \`.env\` (a gitignored co
 \`.env.example\`). Backends allow CORS from the frontends that use them unless \`CORS_ORIGINS\` is set.
 
 Requires Node 24 and pnpm.
-
+${databaseSection(manifest, 2)}
 ## AI agents
 
 ${kbeeHint()}
