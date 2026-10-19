@@ -5,27 +5,77 @@ import type { ProjectContext } from '../plugins/types'
 import { type FileTree, json } from './tree'
 
 // Build output and generated dirs of every supported framework, so apps need no own .gitignore.
-const GITIGNORE = `node_modules
-dist
-apps/*/build
-.next
-.nuxt
-.output
-.nitro
-.data
-.svelte-kit
-.astro
-.react-router
-.tanstack
-.solid
-routeTree.gen.ts
-.turbo
-.nx
-.env
-*.log
-coverage
-.DS_Store
-`
+export const GITIGNORE_LINES = [
+  'node_modules',
+  'dist',
+  'apps/*/build',
+  '.next',
+  '.nuxt',
+  '.output',
+  '.nitro',
+  '.data',
+  '.svelte-kit',
+  '.astro',
+  '.react-router',
+  '.tanstack',
+  '.solid',
+  'routeTree.gen.ts',
+  '.turbo',
+  '.nx',
+  '.env',
+  '*.log',
+  'coverage',
+  '.DS_Store',
+]
+
+// `.env` files stay out of images; `.env.example` is kept as documentation.
+export const DOCKERIGNORE_LINES = [
+  'node_modules',
+  '**/node_modules',
+  '**/dist',
+  '**/build',
+  '**/.solid',
+  '**/.data',
+  '**/.next',
+  '**/.output',
+  '**/.nuxt',
+  '**/.nitro',
+  '**/.svelte-kit',
+  '**/.astro',
+  '**/.react-router',
+  '**/.tanstack',
+  '.git',
+  '**/.turbo',
+  '.nx',
+  '.env',
+  '**/.env',
+  '**/.env.local',
+  '**/.env.*',
+  '!**/.env.example',
+]
+
+// Build output and framework-generated dirs/files are never linted (nor rewritten by --write).
+export const BIOME_INCLUDES = [
+  '**',
+  '!**/dist',
+  '!apps/*/build',
+  '!**/.next',
+  '!**/.nuxt',
+  '!**/.output',
+  '!**/.nitro',
+  '!**/.data',
+  '!**/.svelte-kit',
+  '!**/.astro',
+  '!**/.react-router',
+  '!**/.tanstack',
+  '!**/.solid',
+  '!**/routeTree.gen.ts',
+  '!**/.turbo',
+  '!**/.nx',
+  '!**/node_modules',
+  '!**/openapi.json',
+  '!**/*.d.ts',
+]
 
 function tsconfigs(): FileTree {
   return {
@@ -146,55 +196,13 @@ export function workspaceFiles(
       // openapi-typescript declares a TypeScript 5 peer; the repo pins TypeScript 6, which works.
       peerDependencyRules: { allowedVersions: { typescript: '6' } },
     }),
-    '.gitignore': GITIGNORE,
+    '.gitignore': `${GITIGNORE_LINES.join('\n')}\n`,
     '.nvmrc': '24\n',
-    '.dockerignore': `${[
-      'node_modules',
-      '**/node_modules',
-      '**/dist',
-      '**/build',
-      '**/.solid',
-      '**/.data',
-      '**/.next',
-      '**/.output',
-      '**/.nuxt',
-      '**/.nitro',
-      '**/.svelte-kit',
-      '**/.astro',
-      '**/.react-router',
-      '**/.tanstack',
-      '.git',
-      '**/.turbo',
-      '.nx',
-      '.env',
-      '**/.env',
-      '**/.env.local',
-    ].join('\n')}\n`,
+    '.dockerignore': `${DOCKERIGNORE_LINES.join('\n')}\n`,
     'biome.json': json({
       $schema: `https://biomejs.dev/schemas/${v['@biomejs/biome']}/schema.json`,
       files: {
-        // Build output and framework-generated dirs/files are never linted (nor rewritten by --write).
-        includes: [
-          '**',
-          '!**/dist',
-          '!apps/*/build',
-          '!**/.next',
-          '!**/.nuxt',
-          '!**/.output',
-          '!**/.nitro',
-          '!**/.data',
-          '!**/.svelte-kit',
-          '!**/.astro',
-          '!**/.react-router',
-          '!**/.tanstack',
-          '!**/.solid',
-          '!**/routeTree.gen.ts',
-          '!**/.turbo',
-          '!**/.nx',
-          '!**/node_modules',
-          '!**/openapi.json',
-          '!**/*.d.ts',
-        ],
+        includes: BIOME_INCLUDES,
       },
       // Lint .vue/.svelte/.astro templates too; otherwise imports used only in a template look
       // unused and the post-install `biome check --write` could drop them.

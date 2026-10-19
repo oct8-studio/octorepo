@@ -55,8 +55,12 @@ describe('workspaceFiles', () => {
     expect(tree['.dockerignore']).toContain('**/node_modules')
     // Local .env files hold dev settings and must never be baked into images.
     expect(tree['.dockerignore']?.split('\n')).toEqual(
-      expect.arrayContaining(['.env', '**/.env', '**/.env.local']),
+      expect.arrayContaining(['.env', '**/.env', '**/.env.local', '**/.env.*']),
     )
+    // ...but .env.example (documentation only) stays in the build context; the negation comes last.
+    const lines = tree['.dockerignore']?.trim().split('\n') ?? []
+    expect(lines.at(-1)).toBe('!**/.env.example')
+    expect(lines.indexOf('**/.env.*')).toBeLessThan(lines.indexOf('!**/.env.example'))
     expect(tree['README.md']).toContain('pnpm --filter @acme/api dev')
     const root = JSON.parse(tree['package.json'] as string)
     expect(root.private).toBe(true)
