@@ -13,6 +13,7 @@ import { CLI_NAME, CLI_VERSION } from './meta'
 import { CliError, formatError } from './model/errors'
 import { type AppKind, type AppSpec, parseStackConfig, type StackConfig } from './model/stack'
 import { defaultRegistry } from './plugins/registry'
+import { applyPreset } from './presets'
 
 interface CreateFlags {
   config?: string
@@ -20,6 +21,7 @@ interface CreateFlags {
   app: string[]
   service: string[]
   orm?: string
+  preset?: string
   install: boolean
   git: boolean
   force?: boolean
@@ -38,9 +40,10 @@ async function stackFromFlags(dir: string | undefined, flags: CreateFlags): Prom
       throw new CliError(`Cannot read --config ${flags.config}: ${(e as Error).message}`)
     }
   }
-  const tool = flags.tool ?? base.monorepoTool
+  // A preset alone is a complete stack, so the tool falls back to turbo.
+  const tool = flags.tool ?? base.monorepoTool ?? (flags.preset ? 'turbo' : undefined)
   if (!tool) throw new CliError('Missing --tool <turbo|nx> (or monorepoTool in --config)')
-  return parseStackConfig({
+  const stack = parseStackConfig({
     ...base,
     name: base.name ?? basename(resolve(dir ?? '.')),
     monorepoTool: tool,
@@ -48,11 +51,17 @@ async function stackFromFlags(dir: string | undefined, flags: CreateFlags): Prom
     services: [...(base.services ?? []), ...flags.service],
     ...((flags.orm ?? base.orm) ? { orm: flags.orm ?? base.orm } : {}),
   })
+  return flags.preset ? applyPreset(flags.preset, stack) : stack
 }
 
 async function create(dir: string | undefined, flags: CreateFlags): Promise<void> {
   const hasStackFlags = Boolean(
-    flags.config || flags.tool || flags.app.length || flags.service.length || flags.orm,
+    flags.config ||
+      flags.tool ||
+      flags.app.length ||
+      flags.service.length ||
+      flags.orm ||
+      flags.preset,
   )
   const interactive = !hasStackFlags && !flags.yes && !flags.json && process.stdin.isTTY
   if (!hasStackFlags && !interactive) {
@@ -194,6 +203,10 @@ program
   .option('--app <spec>', 'kind:name:framework[:uses=a,b] (repeatable)', collect, [])
   .option('--service <id>', 'compose service (repeatable)', collect, [])
   .option('--orm <id>', 'ORM for packages/db: drizzle | prisma (adds postgres)')
+  .option(
+    '--preset <id>',
+    'start from a preset: saas | api-platform (extra --app flags are appended)',
+  )
   .option('--no-install', 'skip pnpm install')
   .option('--no-git', 'skip git init')
   .option('--force', 'write into a non-empty directory')

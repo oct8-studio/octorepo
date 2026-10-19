@@ -22,6 +22,8 @@ export interface StackConfig {
   services: string[]
   /** One ORM per stack; generates the shared `packages/db` and needs the postgres service. */
   orm?: OrmId
+  /** Preset the stack started from (informational; the apps are already expanded). */
+  preset?: string
 }
 
 export interface Manifest extends StackConfig {
@@ -47,6 +49,7 @@ export const StackConfigSchema = z.object({
   apps: z.array(AppSpecSchema),
   services: z.array(z.string()).default([]),
   orm: z.enum(['drizzle', 'prisma']).optional(),
+  preset: z.string().optional(),
 })
 
 export const ManifestSchema = StackConfigSchema.extend({

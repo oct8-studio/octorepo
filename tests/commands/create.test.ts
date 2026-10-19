@@ -44,6 +44,46 @@ describe('runCreate', () => {
   })
 })
 
+describe('cli create --preset', () => {
+  const tsx = join(process.cwd(), 'node_modules/.bin/tsx')
+  const cli = join(process.cwd(), 'src/cli.ts')
+  const create = async (cwd: string, ...args: string[]) =>
+    run(tsx, [cli, 'create', 'x', '--no-install', '--no-git', '--json', ...args], { cwd })
+
+  it('preset apps first, extra --app appended, preset recorded in the manifest', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'octo-preset-'))
+    await create(cwd, '--preset', 'api-platform', '--app', 'backend:jobs:express')
+    const m = JSON.parse(await readFile(join(cwd, 'x/.octorepo.json'), 'utf8'))
+    expect(m.preset).toBe('api-platform')
+    expect(m.schemaVersion).toBe(1)
+    expect(m.apps.map((a: { name: string }) => a.name)).toEqual([
+      'gateway',
+      'users',
+      'billing',
+      'docs',
+      'jobs',
+    ])
+    expect(m.orm).toBe('prisma')
+    expect(m.services).toEqual(expect.arrayContaining(['postgres', 'rabbitmq']))
+  })
+
+  it('rejects a name collision with the preset and writes nothing', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'octo-preset-'))
+    await expect(
+      create(
+        cwd,
+        '--preset',
+        'saas',
+        '--app',
+        'backend:web-api:express',
+        '--app',
+        'backend:api:express',
+      ),
+    ).rejects.toThrow(/collides with preset "saas"/)
+    expect(existsSync(join(cwd, 'x'))).toBe(false)
+  })
+})
+
 describe('cli create', () => {
   it('prints JSON only with --json', async () => {
     const cwd = await mkdtemp(join(tmpdir(), 'octo-cli-'))

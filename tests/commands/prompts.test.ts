@@ -24,6 +24,7 @@ beforeEach(() => {
 function scriptAnswers() {
   clack.text.mockResolvedValueOnce('acme').mockResolvedValueOnce('api').mockResolvedValueOnce('web')
   clack.select
+    .mockResolvedValueOnce('none')
     .mockResolvedValueOnce('turbo')
     .mockResolvedValueOnce('backend')
     .mockResolvedValueOnce('express')
@@ -52,7 +53,29 @@ describe('promptForStack', () => {
     expect(validate('admin')).toBeUndefined()
   })
 
+  it('asks about presets first and seeds apps, services and orm from the choice', async () => {
+    clack.select
+      .mockResolvedValueOnce('saas')
+      .mockResolvedValueOnce('turbo')
+      .mockResolvedValueOnce('done')
+      .mockResolvedValueOnce('drizzle')
+    clack.text.mockResolvedValueOnce('acme')
+    clack.multiselect.mockResolvedValueOnce(['postgres', 'valkey', 'mailpit'])
+    clack.confirm.mockResolvedValueOnce(true)
+    const stack = await promptForStack(defaultRegistry())
+    expect(clack.select.mock.calls[0]?.[0].message).toBe('Start from a preset?')
+    expect(stack.preset).toBe('saas')
+    expect(stack.apps.map((a) => a.name)).toEqual(['web', 'admin', 'api', 'worker'])
+    expect(stack.orm).toBe('drizzle')
+    expect(clack.multiselect.mock.calls[0]?.[0].initialValues).toEqual([
+      'postgres',
+      'valkey',
+      'mailpit',
+    ])
+  })
+
   it('prints the cancel message once and throws a silent CancelledError', async () => {
+    clack.select.mockResolvedValueOnce('none')
     clack.text.mockResolvedValueOnce(Symbol('cancel'))
     const err = await promptForStack(defaultRegistry()).catch((e) => e)
     expect(err).toBeInstanceOf(CancelledError)

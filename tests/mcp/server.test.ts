@@ -108,6 +108,53 @@ describe('octorepo mcp server', () => {
     expect(manifest.name).toBe('sibling')
   })
 
+  it('create with a preset puts preset apps first and appends stack.apps', async () => {
+    const r = await call('create', {
+      dir: 'p',
+      preset: 'api-platform',
+      stack: {
+        name: 'p',
+        monorepoTool: 'turbo',
+        apps: [{ name: 'jobs', kind: 'backend', framework: 'express' }],
+      },
+      install: false,
+      git: false,
+    })
+    expect(r.isError).toBeFalsy()
+    const m = JSON.parse(await readFile(join(cwd, 'p/.octorepo.json'), 'utf8'))
+    expect(m.preset).toBe('api-platform')
+    expect(m.apps.map((a: { name: string }) => a.name)).toEqual([
+      'gateway',
+      'users',
+      'billing',
+      'docs',
+      'jobs',
+    ])
+  })
+
+  it('create with a preset rejects a colliding app name and writes nothing', async () => {
+    const r = await call('create', {
+      dir: 'q',
+      preset: 'saas',
+      stack: {
+        monorepoTool: 'turbo',
+        apps: [{ name: 'api', kind: 'backend', framework: 'express' }],
+      },
+      install: false,
+      git: false,
+    })
+    expect(r.isError).toBe(true)
+    expect(r.content[0]?.text).toContain('collides with preset')
+    expect(existsSync(join(cwd, 'q'))).toBe(false)
+  })
+
+  it('list_options includes the presets', async () => {
+    expect(body(await call('list_options')).presets.map((p: { id: string }) => p.id)).toEqual([
+      'saas',
+      'api-platform',
+    ])
+  })
+
   it('create refuses a non-empty dir with the CLI message', async () => {
     await mkdir(join(cwd, 'full'))
     await writeFile(join(cwd, 'full', 'keep.txt'), 'x')

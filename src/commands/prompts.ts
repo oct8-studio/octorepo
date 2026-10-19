@@ -3,6 +3,7 @@ import { CLI_NAME } from '../meta'
 import { CancelledError, CliError } from '../model/errors'
 import type { AppKind, AppSpec, MonorepoTool, OrmId, StackConfig } from '../model/stack'
 import type { Registry } from '../plugins/registry'
+import { applyPreset, findPreset, PRESETS } from '../presets'
 import { appNameProblem, type Issue, validateStack } from '../rules'
 
 const NAME_RE = /^[a-z][a-z0-9-]*$/
@@ -48,6 +49,23 @@ export async function promptForStack(
   opts: { defaultName?: string } = {},
 ): Promise<StackConfig> {
   intro(CLI_NAME)
+  // First question: a preset pre-fills apps, services and ORM; everything stays editable below.
+  const presetId = answer(
+    await select<string>({
+      message: 'Start from a preset?',
+      options: [
+        { value: 'none', label: 'No, start from scratch' },
+        ...PRESETS.map((p) => ({ value: p.id, label: p.id, hint: p.description })),
+      ],
+    }),
+  )
+  const preset = presetId === 'none' ? undefined : findPreset(presetId)
+  const seeded = preset
+    ? applyPreset<Pick<StackConfig, 'apps' | 'services' | 'orm'>>(preset.id, {
+        apps: [],
+        services: [],
+      })
+    : undefined
   const name = answer(
     await text({
       message: 'Project name',
@@ -63,7 +81,8 @@ export async function promptForStack(
     }),
   )
 
-  const apps: AppSpec[] = []
+  const apps: AppSpec[] = seeded ? [...seeded.apps] : []
+  const presetApps = apps.length
   for (;;) {
     const kind = answer(
       await select<AppKind | 'done'>({
@@ -105,7 +124,7 @@ export async function promptForStack(
 
   // Asked after the loop so frontends can use backends added in any order.
   const backends = apps.filter((a) => a.kind === 'backend')
-  for (const fe of apps.filter((a) => a.kind === 'frontend')) {
+  for (const fe of apps.slice(presetApps).filter((a) => a.kind === 'frontend')) {
     fe.uses = backends.length
       ? answer(
           await multiselect<string>({
@@ -123,6 +142,7 @@ export async function promptForStack(
         await multiselect<string>({
           message: 'Compose services',
           options: [...reg.services.values()].map((s) => ({ value: s.id, label: s.label })),
+          ...(seeded ? { initialValues: seeded.services } : {}),
           required: false,
         }),
       )
@@ -134,6 +154,7 @@ export async function promptForStack(
       ? answer(
           await select<string>({
             message: 'ORM (shared packages/db, adds postgres)',
+            ...(seeded?.orm ? { initialValue: seeded.orm } : {}),
             options: [
               { value: 'none', label: 'None' },
               ...[...reg.orms.values()].map((o) => ({ value: o.id, label: o.label })),
@@ -144,6 +165,7 @@ export async function promptForStack(
 
   const stack: StackConfig = { name, monorepoTool, packageManager: 'pnpm', apps, services }
   if (orm !== 'none') stack.orm = orm as OrmId
+  if (preset) stack.preset = preset.id
   const v = validateStack(stack, reg)
   note(
     [

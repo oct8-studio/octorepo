@@ -14,7 +14,7 @@ export interface Rule {
 }
 
 const NAME_RE = /^[a-z][a-z0-9-]*$/
-const RESERVED = ['packages', 'apps', 'node_modules', 'gateway', 'config', 'types']
+const RESERVED = ['packages', 'apps', 'node_modules', 'config', 'types']
 
 const err = (rule: string, message: string, app?: string): Issue => ({
   rule,
