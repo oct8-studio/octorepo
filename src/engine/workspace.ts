@@ -7,7 +7,7 @@ import { type FileTree, json } from './tree'
 // Build output and generated dirs of every supported framework, so apps need no own .gitignore.
 const GITIGNORE = `node_modules
 dist
-build
+apps/*/build
 .next
 .nuxt
 .output
@@ -152,6 +152,9 @@ export function workspaceFiles(
       'node_modules',
       '**/node_modules',
       '**/dist',
+      '**/build',
+      '**/.solid',
+      '**/.data',
       '**/.next',
       '**/.output',
       '**/.nuxt',
@@ -174,7 +177,7 @@ export function workspaceFiles(
         includes: [
           '**',
           '!**/dist',
-          '!**/build',
+          '!apps/*/build',
           '!**/.next',
           '!**/.nuxt',
           '!**/.output',
