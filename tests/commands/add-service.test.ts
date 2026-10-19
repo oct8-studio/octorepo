@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -76,6 +76,16 @@ describe('runAddService', () => {
     expect(await read(root, '.env.example')).toContain('S3_ENDPOINT=http://localhost:8333')
     // The tool-owned startup env check now requires the new vars.
     expect(await read(root, 'apps/api/src/generated/env.ts')).toContain('S3_BUCKET: z.string()')
+  })
+
+  it('seeds a missing backend .env from the updated .env.example', async () => {
+    await rm(join(root, 'apps/api/.env'))
+    const r = await runAddService({ cwd: root, service: 'redis', json: true }, reg)
+    const env = await read(root, 'apps/api/.env')
+    expect(env).toBe(await read(root, 'apps/api/.env.example'))
+    expect(env).toContain('REDIS_URL=')
+    expect(env).toContain('DATABASE_URL=')
+    expect(r.written).toContain(join(root, 'apps/api/.env'))
   })
 
   it('does not duplicate a var the user already set', async () => {

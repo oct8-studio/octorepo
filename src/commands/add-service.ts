@@ -1,4 +1,5 @@
-import { readFile, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { copyFile, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { refreshAgentsSection } from '../engine/agents'
 import { generateProject } from '../engine/generate'
@@ -60,7 +61,8 @@ async function appendEnv(path: string, vars: Record<string, string>): Promise<bo
 /**
  * Adds a compose service: regenerates the compose file, root `.env.example`, manifest,
  * each app's `src/generated/` code and the AGENTS.md section, then appends the service's
- * localhost env vars to each backend's `.env` and `.env.example`. A service the repo already has is a no-op. Nothing is written on errors.
+ * localhost env vars to each backend's `.env.example` and `.env` (a missing `.env` is seeded
+ * from the updated example). A service the repo already has is a no-op. Nothing is written on errors.
  */
 export async function runAddService(
   opts: AddServiceOptions,
@@ -105,9 +107,16 @@ export async function runAddService(
 
   const vars = plugin.env({ stack, scope: `@${stack.name}`, versions: VERSIONS }, 'localhost')
   for (const app of stack.apps.filter((a) => a.kind === 'backend')) {
-    for (const file of ['.env', '.env.example']) {
-      const path = join(opts.cwd, 'apps', app.name, file)
-      if (await appendEnv(path, vars)) written.push(path)
+    const dir = join(opts.cwd, 'apps', app.name)
+    const example = join(dir, '.env.example')
+    if (await appendEnv(example, vars)) written.push(example)
+    const env = join(dir, '.env')
+    if (existsSync(env)) {
+      if (await appendEnv(env, vars)) written.push(env)
+    } else {
+      // No .env yet: a copy of the full example, not one holding only this service's vars.
+      await copyFile(example, env)
+      written.push(env)
     }
   }
   return {
