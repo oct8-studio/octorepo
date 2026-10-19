@@ -193,6 +193,8 @@ export const reactVitePlugin: FrameworkPlugin = {
   label: 'React + Vite',
   apiStyles: [],
   defaultPort: 3000,
+  uiFamily: 'react',
+  rendering: 'spa',
   generate,
   dockerfile,
 }

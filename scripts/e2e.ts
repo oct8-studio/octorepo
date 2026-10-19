@@ -199,7 +199,7 @@ async function devSmoke(stack: StackConfig, root: string, logPath: string): Prom
     for (const fe of stack.apps.filter((a) => a.kind === 'frontend')) {
       const origin = `http://localhost:${fe.port}`
       const uses = backends.filter((b) => fe.uses?.includes(b.name))
-      if (fe.framework === 'next') {
+      if (defaultRegistry().framework(fe.framework, 'frontend')?.rendering === 'ssr') {
         // Server-side render: the page HTML carries each backend's /hello message.
         await eventually(async () => {
           const res = await get(`${origin}/`)
@@ -327,7 +327,7 @@ async function main(): Promise<number> {
       }
       for (const fe of stack.apps.filter((a) => a.kind === 'frontend')) {
         const uses = backends.filter((b) => fe.uses?.includes(b.name))
-        if (fe.framework === 'next') {
+        if (defaultRegistry().framework(fe.framework, 'frontend')?.rendering === 'ssr') {
           await check(`page ${fe.name}`, () =>
             eventually(async () => {
               const res = await fetchText(`http://localhost:${fe.port}/`)

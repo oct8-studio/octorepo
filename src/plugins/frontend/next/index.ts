@@ -155,6 +155,8 @@ export const nextPlugin: FrameworkPlugin = {
   label: 'Next.js',
   apiStyles: [],
   defaultPort: 3000,
+  uiFamily: 'react',
+  rendering: 'ssr',
   generate,
   dockerfile,
 }

@@ -27,6 +27,12 @@ export interface MonorepoPlugin {
   generate(ctx: ProjectContext): FileTree
 }
 
+/** Component family of a shared UI package (`packages/ui-<family>`). */
+export type UiFamily = 'react' | 'vue' | 'svelte' | 'solid'
+
+/** Generates the shared `packages/ui-<family>` package. */
+export type UiPackageGenerator = (ctx: ProjectContext) => FileTree
+
 export interface FrameworkPlugin {
   id: string
   kind: AppKind
@@ -34,6 +40,13 @@ export interface FrameworkPlugin {
   /** Empty for frontends. */
   apiStyles: string[]
   defaultPort: number
+  /** Frontends that consume a shared UI package: which `packages/ui-<family>` they import. */
+  uiFamily?: UiFamily
+  /**
+   * Frontends only. 'ssr' reads `<UPPER>_URL` server-side at runtime (compose sets it);
+   * 'spa' bakes its public backend URLs into the bundle at build time.
+   */
+  rendering?: 'ssr' | 'spa'
   generate(ctx: AppContext): FileTree
   dockerfile(ctx: AppContext): string
 }

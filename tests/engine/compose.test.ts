@@ -3,7 +3,7 @@ import { parse } from 'yaml'
 import { composeFiles } from '../../src/engine/compose'
 import type { StackConfig } from '../../src/model/stack'
 import { defaultRegistry } from '../../src/plugins/registry'
-import type { ProjectContext } from '../../src/plugins/types'
+import type { FrameworkPlugin, ProjectContext } from '../../src/plugins/types'
 import { VERSIONS } from '../../src/versions'
 
 const stack: StackConfig = {
@@ -66,5 +66,48 @@ describe('composeFiles', () => {
     expect(d.services.redis.ports).toEqual(['127.0.0.1:6379:6379'])
     expect(d.services.api.environment.REDIS_URL).toBe('redis://redis:6379')
     expect(d.services.redis.healthcheck.test.join(' ')).toContain('redis-cli ping')
+  })
+  it('gives every SSR frontend server-side backend URLs, and SPA frontends none', () => {
+    const stub = (id: string, rendering: 'ssr' | 'spa'): FrameworkPlugin => ({
+      id,
+      kind: 'frontend',
+      label: id,
+      apiStyles: [],
+      defaultPort: 3000,
+      rendering,
+      generate: () => ({}),
+      dockerfile: () => '',
+    })
+    const reg = defaultRegistry()
+      .registerFramework(stub('ssr-stub', 'ssr'))
+      .registerFramework(stub('spa-stub', 'spa'))
+    const s: StackConfig = {
+      ...stack,
+      services: [],
+      apps: [
+        {
+          name: 'shop',
+          kind: 'frontend',
+          framework: 'ssr-stub',
+          uses: ['billing-api'],
+          port: 3000,
+        },
+        { name: 'spa', kind: 'frontend', framework: 'spa-stub', uses: ['billing-api'], port: 3001 },
+        {
+          name: 'billing-api',
+          kind: 'backend',
+          framework: 'express',
+          apiStyle: 'rest',
+          port: 4001,
+        },
+      ],
+    }
+    const d = parse(composeFiles({ ...ctx, stack: s }, reg)['docker-compose.yml'] as string)
+    expect(d.services.shop.environment).toEqual({
+      PORT: '3000',
+      BILLING_API_URL: 'http://billing-api:4001',
+    })
+    const spaEnv = d.services.spa.environment ?? {}
+    expect(Object.keys(spaEnv).filter((k) => k.endsWith('_URL'))).toEqual([])
   })
 })

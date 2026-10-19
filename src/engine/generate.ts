@@ -2,16 +2,12 @@ import { CLI_VERSION } from '../meta'
 import { CliError } from '../model/errors'
 import type { Manifest, StackConfig } from '../model/stack'
 import type { Registry } from '../plugins/registry'
-import type { AppContext, FileTree, ProjectContext, ResolvedApp } from '../plugins/types'
+import type { AppContext, FileTree, ProjectContext, ResolvedApp, UiFamily } from '../plugins/types'
 import { VERSIONS } from '../versions'
 import { restClientFiles } from './client'
 import { composeFiles, serviceEnv } from './compose'
 import { mergeTrees } from './tree'
-import { uiPackageFiles } from './ui'
 import { workspaceFiles } from './workspace'
-
-/** Frontend frameworks that consume the shared `ui-react` package. */
-const REACT_FRAMEWORKS = new Set(['react-vite', 'next'])
 
 function resolve(app: StackConfig['apps'][number]): ResolvedApp {
   if (app.port === undefined)
@@ -38,8 +34,16 @@ export function generateProject(stack: StackConfig, reg: Registry): FileTree {
     mono.generate(ctx),
   ]
   for (const b of apps.filter((a) => a.kind === 'backend')) trees.push(restClientFiles(ctx, b))
-  if (apps.some((a) => a.kind === 'frontend' && REACT_FRAMEWORKS.has(a.framework))) {
-    trees.push(uiPackageFiles(ctx, 'react'))
+  // One shared UI package per component family the frontends use (ui-react, ui-vue, ...).
+  const families = new Set<UiFamily>()
+  for (const a of apps.filter((a) => a.kind === 'frontend')) {
+    const family = reg.framework(a.framework, 'frontend')?.uiFamily
+    if (family) families.add(family)
+  }
+  for (const family of families) {
+    const gen = reg.ui(family)
+    if (!gen) throw new CliError(`No UI package generator registered for family "${family}"`)
+    trees.push(gen(ctx))
   }
 
   const localServiceEnv = serviceEnv(ctx, reg, 'localhost')

@@ -172,4 +172,41 @@ describe('runAddApp', () => {
     )
     expect(existsSync(join(root, 'packages/ui-react/package.json'))).toBe(true)
   })
+
+  it('creates the UI package of a new family and leaves ui-react untouched', async () => {
+    const vueReg = defaultRegistry()
+      .registerFramework({
+        id: 'vue-stub',
+        kind: 'frontend',
+        label: 'Vue stub',
+        apiStyles: [],
+        defaultPort: 3000,
+        uiFamily: 'vue',
+        rendering: 'spa',
+        generate: (ctx) => ({ [`apps/${ctx.app.name}/package.json`]: '{}\n' }),
+        dockerfile: () => 'FROM scratch\n',
+      })
+      .registerUi('vue', () => ({
+        'packages/ui-vue/package.json': '{"name":"@demo/ui-vue"}\n',
+        'packages/ui-vue/src/index.ts': 'export {}\n',
+      }))
+    const uiDir = join(root, 'packages/ui-react')
+    const before = await Promise.all(
+      (await list(uiDir)).map(async (f) => [f, await read(uiDir, f).catch(() => '')]),
+    )
+    await runAddApp(
+      {
+        cwd: root,
+        json: true,
+        app: { name: 'vue', kind: 'frontend', framework: 'vue-stub', uses: ['api'] },
+      },
+      vueReg,
+    )
+    expect(await read(root, 'packages/ui-vue/package.json')).toBe('{"name":"@demo/ui-vue"}\n')
+    expect(existsSync(join(root, 'packages/ui-vue/src/index.ts'))).toBe(true)
+    const after = await Promise.all(
+      (await list(uiDir)).map(async (f) => [f, await read(uiDir, f).catch(() => '')]),
+    )
+    expect(after).toEqual(before)
+  })
 })

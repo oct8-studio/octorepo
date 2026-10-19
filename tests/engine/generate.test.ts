@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
 import { generateProject } from '../../src/engine/generate'
 import { CLI_VERSION } from '../../src/meta'
+import { CliError } from '../../src/model/errors'
 import type { StackConfig } from '../../src/model/stack'
 import { parseManifest } from '../../src/model/stack'
 import { defaultRegistry } from '../../src/plugins/registry'
+import type { FrameworkPlugin, UiFamily } from '../../src/plugins/types'
 
 const stack: StackConfig = {
   name: 'acme',
@@ -82,5 +84,53 @@ describe('generateProject', () => {
     expect(Object.keys(backendOnly).some((k) => k.startsWith('packages/ui-react/'))).toBe(false)
     expect(backendOnly['packages/api-client/package.json']).toBeDefined()
     expect(JSON.stringify(tree)).not.toMatch(/\{\{\w+\}\}/)
+  })
+
+  describe('shared UI packages per family', () => {
+    const stub = (id: string, uiFamily: UiFamily): FrameworkPlugin => ({
+      id,
+      kind: 'frontend',
+      label: id,
+      apiStyles: [],
+      defaultPort: 3000,
+      uiFamily,
+      rendering: 'ssr',
+      generate: (ctx) => ({ [`apps/${ctx.app.name}/package.json`]: '{}' }),
+      dockerfile: () => '',
+    })
+    const reg = () =>
+      defaultRegistry()
+        .registerFramework(stub('vue-stub', 'vue'))
+        .registerFramework(stub('svelte-stub', 'svelte'))
+        .registerFramework(stub('solid-stub', 'solid'))
+        .registerUi('vue', () => ({ 'packages/ui-vue/package.json': '{}' }))
+        .registerUi('svelte', () => ({ 'packages/ui-svelte/package.json': '{}' }))
+    const mixed: StackConfig = {
+      ...stack,
+      apps: [
+        { name: 'a', kind: 'frontend', framework: 'vue-stub', uses: ['api'], port: 3000 },
+        { name: 'b', kind: 'frontend', framework: 'svelte-stub', uses: ['api'], port: 3001 },
+        { name: 'c', kind: 'frontend', framework: 'vue-stub', uses: [], port: 3002 },
+        stack.apps[1] as StackConfig['apps'][number],
+      ],
+    }
+
+    it('emits one package per distinct family and nothing for unused families', () => {
+      const t = generateProject(mixed, reg())
+      expect(t['packages/ui-vue/package.json']).toBe('{}')
+      expect(t['packages/ui-svelte/package.json']).toBe('{}')
+      expect(Object.keys(t).some((k) => k.startsWith('packages/ui-react/'))).toBe(false)
+    })
+    it('fails when a family has no registered generator', () => {
+      const bad: StackConfig = {
+        ...stack,
+        apps: [
+          { name: 'a', kind: 'frontend', framework: 'solid-stub', uses: [], port: 3000 },
+          stack.apps[1] as StackConfig['apps'][number],
+        ],
+      }
+      expect(() => generateProject(bad, reg())).toThrow(CliError)
+      expect(() => generateProject(bad, reg())).toThrow(/solid/)
+    })
   })
 })
