@@ -120,19 +120,57 @@ async function killTree(child: ChildProcess, ports: number[]): Promise<void> {
       // group already gone
     }
   }
-  signal('SIGTERM')
+  const openPorts = async () => {
+    const open: number[] = []
+    for (const p of ports) if (await listening(p)) open.push(p)
+    return open
+  }
+  // Stop it the way a developer does (Ctrl-C). Turbo forwards SIGINT to its tasks, but on Linux it
+  // runs each task in its own process group, so killing our group early would orphan them.
+  signal('SIGINT')
   const timedOut = await Promise.race([
     exited.then(() => false),
     new Promise<boolean>((r) => setTimeout(() => r(true), 15_000)),
   ])
-  // Grandchildren may outlive the leader; SIGKILL whatever is left of the group either way.
-  if (timedOut) console.log('pnpm dev ignored SIGTERM; sending SIGKILL')
+  if (timedOut) console.log('pnpm dev ignored SIGINT')
+  try {
+    await eventually(async () => {
+      const open = await openPorts()
+      if (open.length) throw new Error(`still listening on ${open.join(', ')}`)
+    }, 15_000)
+  } catch {
+    console.log('dev servers outlived SIGINT; sending SIGKILL')
+  }
   signal('SIGKILL')
+  for (const p of await openPorts()) await killListeners(p)
   await eventually(async () => {
-    const open = []
-    for (const p of ports) if (await listening(p)) open.push(p)
+    const open = await openPorts()
     if (open.length) throw new Error(`dev servers still listening on ${open.join(', ')}`)
   }, 20_000)
+}
+
+/** SIGKILLs whatever process is listening on localhost:<port> (orphans outside our process group). */
+async function killListeners(port: number): Promise<void> {
+  const out = await new Promise<string>((done) => {
+    const lsof = spawn('lsof', ['-ti', `tcp:${port}`, '-sTCP:LISTEN'], {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+    let text = ''
+    lsof.stdout.on('data', (d) => {
+      text += d
+    })
+    lsof.on('error', () => done(''))
+    lsof.on('close', () => done(text))
+  })
+  for (const line of out.split('\n')) {
+    const pid = Number(line.trim())
+    if (!pid) continue
+    try {
+      process.kill(pid, 'SIGKILL')
+    } catch {
+      // already gone
+    }
+  }
 }
 
 /** `pnpm dev` on a fresh repo: every backend is healthy and every frontend can reach its backends. */
