@@ -6,6 +6,7 @@ import { json } from './tree'
 export function restClientFiles(ctx: ProjectContext, backend: AppSpec): FileTree {
   const dir = `packages/${backend.name}-client`
   const v = ctx.versions
+  const schema = `openapi-typescript ../../apps/${backend.name}/openapi.json -o src/schema.d.ts`
   const pkg = {
     name: `${ctx.scope}/${backend.name}-client`,
     version: '0.0.0',
@@ -22,8 +23,10 @@ export function restClientFiles(ctx: ProjectContext, backend: AppSpec): FileTree
     },
     files: ['dist'],
     scripts: {
-      build: `openapi-typescript ../../apps/${backend.name}/openapi.json -o src/schema.d.ts && tsdown`,
-      dev: 'tsdown --watch',
+      build: `${schema} && tsdown`,
+      // `dev` runs alongside this package's own build (both after the backend build), so it
+      // generates the schema itself and never cleans dist/ under a running consumer.
+      dev: `${schema} && tsdown --watch --no-clean`,
       lint: 'biome check .',
       typecheck: 'tsc --noEmit',
       test: 'vitest run --passWithNoTests',

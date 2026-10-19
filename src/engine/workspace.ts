@@ -175,7 +175,7 @@ export function workspaceFiles(
       files: ['dist'],
       scripts: {
         build: 'tsdown',
-        dev: 'tsdown --watch',
+        dev: 'tsdown --watch --no-clean',
         lint: 'biome check .',
         typecheck: 'tsc --noEmit',
         test: 'vitest run --passWithNoTests',

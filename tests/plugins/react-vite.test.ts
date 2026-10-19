@@ -70,6 +70,7 @@ describe('uiPackageFiles', () => {
   it('generates a dual-build ui-react package', () => {
     const pkg = JSON.parse(tree['packages/ui-react/package.json'] as string)
     expect(pkg.name).toBe('@acme/ui-react')
+    expect(pkg.scripts.dev).toBe('tsdown --watch --no-clean')
     expect(pkg.files).toEqual(['dist'])
     expect(pkg.exports['.'].require.default).toBe('./dist/index.cjs')
     expect(tree['packages/ui-react/tsdown.config.ts']).toContain('fixedExtension: false')

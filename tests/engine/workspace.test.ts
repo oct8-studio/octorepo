@@ -33,6 +33,8 @@ describe('workspaceFiles', () => {
     ])
     expect(tree['packages/types/tsdown.config.ts']).toContain('fixedExtension: false')
     expect(tree['packages/types/src/index.ts']).toContain('HelloResponseSchema')
+    // Watch without cleaning: dev runs alongside the upstream build that consumers wait for.
+    expect(pkg.scripts.dev).toBe('tsdown --watch --no-clean')
   })
   it('config package exports tsconfigs', () => {
     const pkg = JSON.parse(tree['packages/config/package.json'] as string)

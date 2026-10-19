@@ -33,6 +33,11 @@ describe('restClientFiles', () => {
     expect(pkg.types).toBe('./dist/index.d.ts')
     expect(tree['packages/api-client/tsdown.config.ts']).toContain('fixedExtension: false')
   })
+  it('dev generates the schema before watching (it may start before the client build)', () => {
+    expect(pkg.scripts.dev).toBe(
+      'openapi-typescript ../../apps/api/openapi.json -o src/schema.d.ts && tsdown --watch --no-clean',
+    )
+  })
   it('exports createClient', () => {
     const src = tree['packages/api-client/src/index.ts'] as string
     expect(src).toContain('export function createClient')
