@@ -1,7 +1,7 @@
 {
   "name": "@oct8/octorepo",
   "version": "0.3.0",
-  "description": "Scaffold multi-app Node/TypeScript monorepos (Turborepo or Nx): Next.js, Nuxt, SvelteKit, Astro, Vue, React frontends; NestJS, Express, Fastify, Hono, Koa backends; Docker Compose; and an MCP server for AI agents",
+  "description": "Scaffold multi-app Node/TypeScript monorepos (Turborepo or Nx): Next.js, Nuxt, SvelteKit, Astro, Vue, React frontends; NestJS, Express, Fastify, Hono, Koa backends; Drizzle or Prisma ORM; Postgres, Redis, Valkey, RabbitMQ, Mailpit and S3 services in Docker Compose; saas and api-platform presets; and an MCP server for AI agents",
   "keywords": [
     "monorepo",
     "turborepo",
@@ -23,7 +23,10 @@
     "generator",
     "express",
     "vite",
-    "docker-compose"
+    "docker-compose",
+    "drizzle",
+    "prisma",
+    "postgres"
   ],
   "homepage": "https://github.com/oct8-studio/octorepo#readme",
   "bugs": {
