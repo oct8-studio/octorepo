@@ -86,9 +86,11 @@ export async function runAddService(
     ...(current.preset ? { preset: current.preset } : {}),
   }
   const { stack, errors, warnings, fixes } = validateStack(config, reg)
-  if (errors.length || !plugin) {
+  if (errors.length) {
     throw new CliError(`Invalid stack:\n${errors.map((e) => `  - ${e.message}`).join('\n')}`)
   }
+  // service-known reports unknown ids above; this only guards a registry/rules mismatch.
+  if (!plugin) throw new CliError(`Service "${opts.service}" is not registered`)
 
   const generated = generateProject(stack, reg)
   const tree: FileTree = {}

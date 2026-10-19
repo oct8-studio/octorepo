@@ -115,6 +115,32 @@ describe('runAddService', () => {
     expect(await read(root, '.octorepo.json')).toBe(manifest)
   })
 
+  it('refuses a service whose id an existing app already uses as its name, writing nothing', async () => {
+    // A repo from before the name rule: the backend "jobs" is recorded as "redis".
+    const manifestPath = join(root, '.octorepo.json')
+    const m = JSON.parse(await read(root, '.octorepo.json'))
+    m.apps = m.apps.map((a: { name: string }) => (a.name === 'jobs' ? { ...a, name: 'redis' } : a))
+    await writeFile(manifestPath, `${JSON.stringify(m, null, 2)}\n`)
+    const manifest = await read(root, '.octorepo.json')
+    const compose = await read(root, 'docker-compose.yml')
+    await expect(runAddService({ cwd: root, service: 'redis', json: true }, reg)).rejects.toThrow(
+      /App name "redis" collides with the compose service "redis"/,
+    )
+    expect(await read(root, '.octorepo.json')).toBe(manifest)
+    expect(await read(root, 'docker-compose.yml')).toBe(compose)
+  })
+
+  it('names the service when the registry has no plugin but the rules pass (defensive)', async () => {
+    const odd = defaultRegistry()
+    // First lookup (runAddService's own) misses; the rules' lookups still find it.
+    let calls = 0
+    const real = odd.service.bind(odd)
+    odd.service = (id: string) => (calls++ === 0 ? undefined : real(id))
+    await expect(runAddService({ cwd: root, service: 'redis', json: true }, odd)).rejects.toThrow(
+      'Service "redis" is not registered',
+    )
+  })
+
   it('patches root ignore files of an older repo (append-only) and leaves current ones alone', async () => {
     const before = await read(root, '.gitignore')
     const fresh = await runAddService({ cwd: root, service: 'mailpit', json: true }, reg)
