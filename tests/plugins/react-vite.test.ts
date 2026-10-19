@@ -33,6 +33,9 @@ describe('reactVitePlugin', () => {
     expect(pkg.dependencies['@acme/ui-react']).toBe('workspace:*')
     expect(pkg.files).toEqual(['dist'])
     expect(tree['apps/web/src/App.tsx']).toContain("apiClient.GET('/hello')")
+    expect(tree['apps/web/src/generated/api.ts']).toContain('as createApiClient }')
+    expect(tree['apps/web/src/App.tsx']).toContain('async function loadApi()')
+    expect(tree['apps/web/src/App.tsx']).toContain('load={loadApi}')
     expect(JSON.stringify(tree)).not.toMatch(/\{\{\w+\}\}/)
   })
 
@@ -42,6 +45,8 @@ describe('reactVitePlugin', () => {
       backends: [{ name: 'billing-api', kind: 'backend', framework: 'express', port: 4001 }],
     })
     expect(tree['apps/web/src/generated/api.ts']).toContain('billingApiClient')
+    expect(tree['apps/web/src/generated/api.ts']).toContain('as createBillingApiClient }')
+    expect(tree['apps/web/src/App.tsx']).toContain('async function loadBillingApi()')
     expect(tree['apps/web/src/generated/api.ts']).toContain('VITE_BILLING_API_URL')
     expect(tree['apps/web/.env.example']).toContain('VITE_BILLING_API_URL=http://localhost:4001')
   })
