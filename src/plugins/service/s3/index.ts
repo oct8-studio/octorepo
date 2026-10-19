@@ -28,6 +28,8 @@ export const s3Plugin: ServicePlugin = {
       interval: '5s',
       timeout: '5s',
       retries: 20,
+      // The first start initialises master, volume and filer before the S3 gateway answers.
+      start_period: '30s',
     },
   }),
   env: (ctx, host = 's3') => ({

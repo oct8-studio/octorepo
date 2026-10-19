@@ -18,6 +18,8 @@ export interface CreateOptions {
   force: boolean
   json: boolean
   yes: boolean
+  /** Library callers: skip the human-facing stderr hint even when json is false. */
+  quiet?: boolean
 }
 
 export interface CreateResult {
@@ -39,6 +41,6 @@ export async function runCreate(opts: CreateOptions, reg: Registry): Promise<Cre
   await writeTree(root, generateProject(stack, reg), { mode: 'create', force: opts.force })
   const manual = await runPostSteps(root, { install: opts.install, git: opts.git })
   // Human output only: --json stdout stays pure.
-  if (!opts.json) process.stderr.write(`\n${kbeeHint()}\n`)
+  if (!opts.json && !opts.quiet) process.stderr.write(`\n${kbeeHint()}\n`)
   return { root, warnings, fixes, manual }
 }

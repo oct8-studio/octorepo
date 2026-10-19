@@ -47,7 +47,9 @@ describe('runAddService', () => {
       expect(doc.services.postgres).toBeDefined()
       const manifest = JSON.parse(await read(root, '.octorepo.json'))
       expect(manifest.services).toEqual(['postgres', service])
-      expect(await read(root, 'AGENTS.md')).toContain(`postgres, ${service}`)
+      const agents = await read(root, 'AGENTS.md')
+      expect(agents).toContain('- `postgres`: localhost:5432')
+      expect(agents).toContain(`- \`${service}\`: `)
     })
   }
 
@@ -158,6 +160,17 @@ describe('runAddService', () => {
     const m = JSON.parse(await read(created.root, '.octorepo.json'))
     expect(m.preset).toBe('saas')
     expect(m.services).toEqual(expect.arrayContaining(['rabbitmq', 'mailpit']))
+  })
+
+  it('AGENTS.md lists service UIs and dev credentials', async () => {
+    await runAddService({ cwd: root, service: 'rabbitmq', json: true }, reg)
+    await runAddService({ cwd: root, service: 'mailpit', json: true }, reg)
+    await runAddService({ cwd: root, service: 's3', json: true }, reg)
+    const agents = await read(root, 'AGENTS.md')
+    expect(agents).toContain('http://localhost:15672 (login `app`/`app`)')
+    expect(agents).toContain('http://localhost:8025')
+    expect(agents).toContain('`octorepo-local-secret`')
+    expect(agents).toContain('bucket `demo-files`')
   })
 
   it('refuses outside a generated repo', async () => {

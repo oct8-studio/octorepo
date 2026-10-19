@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { StackConfig } from '../model/stack'
@@ -9,6 +10,21 @@ export const AGENTS_END = '<!-- octorepo:end -->'
 /** Pointer to oct8 studio's cross-repo KB skills; no KB is generated (kbee needs cited facts + approval). */
 export function kbeeHint(): string {
   return "This repo's structure is in `.octorepo.json`. For cross-repo knowledge with cited facts, run `npx skills add oct8-studio/kbee`, then ask your agent to run kbee-init and treat each package as its own entry."
+}
+
+export const CLAUDE_FILE = 'CLAUDE.md'
+export const CLAUDE_CONTENT = '@AGENTS.md\n'
+
+/** Where each service listens on localhost (docker compose), its UI and its dev-only credentials. */
+const SERVICE_NOTES: Record<string, (stack: StackConfig) => string> = {
+  postgres: (s) =>
+    `localhost:5432, user/password \`postgres\`/\`postgres\`, database \`${s.name}\``,
+  redis: () => 'localhost:6379, no auth',
+  valkey: () => 'localhost:6380 (container port 6379), no auth',
+  rabbitmq: () => 'AMQP localhost:5672; management UI http://localhost:15672 (login `app`/`app`)',
+  mailpit: () => 'SMTP localhost:1025 (no auth); inbox UI http://localhost:8025',
+  s3: (s) =>
+    `S3 API http://localhost:8333 (SeaweedFS), access key \`octorepo\` / secret \`octorepo-local-secret\`, bucket \`${s.name.slice(0, 57)}-files\` (created on first upload)`,
 }
 
 /** The octorepo-owned AGENTS.md section, markers included. Always ends with a newline. */
@@ -41,6 +57,15 @@ Database (\`pnpm --filter ${scope}/db <script>\`; compose runs migrate + seed in
 - \`db:generate\`: ${orm === 'prisma' ? 'regenerate the Prisma Client (the build also runs it)' : 'drizzle-kit generate (same as db:migration)'}
 `
     : ''
+  const services = stack.services.length
+    ? `
+### Services (docker compose)
+
+Dev-only credentials; backends get the connection URLs from their \`.env\`.
+
+${stack.services.map((id) => `- \`${id}\`${SERVICE_NOTES[id] ? `: ${SERVICE_NOTES[id](stack)}` : ''}`).join('\n')}
+`
+    : ''
   return `${AGENTS_BEGIN}
 ## Repo layout (managed by octorepo)
 
@@ -57,7 +82,7 @@ ${apps.join('\n')}
 - \`packages/config\` (\`${scope}/config\`): shared tsconfigs
 - \`packages/types\` (\`${scope}/types\`): shared zod schemas and types
 ${[...clients, ...db].join('\n')}
-${stack.services.length ? `\nServices (docker compose): ${stack.services.join(', ')}\n` : ''}
+${services}
 ### Commands
 
 \`\`\`sh
@@ -65,6 +90,7 @@ pnpm dev
 pnpm build
 pnpm test
 pnpm lint
+pnpm typecheck
 ${filters.join('\n')}
 \`\`\`
 ${dbScripts}
@@ -96,13 +122,16 @@ export function applyAgentsSection(existing: string | null, section: string): st
     return `${existing}${sep}${section}`
   }
   const end = endAt + AGENTS_END.length
-  // The section's own trailing newline is only added when the file did not already have one there.
-  const tail = existing.slice(end)
-  return `${existing.slice(0, start)}${section.slice(0, -1)}${tail === '' ? '\n' : tail}`
+  // Every byte after the end marker is kept as-is, including a missing final newline.
+  return `${existing.slice(0, start)}${section.slice(0, -1)}${existing.slice(end)}`
 }
 
-/** Rewrites only the octorepo section of `<root>/AGENTS.md` (creating the file if needed). Used by `add app|service`. */
-export async function refreshAgentsSection(root: string, stack: StackConfig): Promise<string> {
+/**
+ * Rewrites only the octorepo section of `<root>/AGENTS.md` (creating the file if needed), and
+ * creates `CLAUDE.md` for repos from versions that predate it (never rewritten). Used by
+ * `add app|service`. Returns the written paths.
+ */
+export async function refreshAgentsSection(root: string, stack: StackConfig): Promise<string[]> {
   const path = join(root, AGENTS_FILE)
   let existing: string | null = null
   try {
@@ -111,5 +140,11 @@ export async function refreshAgentsSection(root: string, stack: StackConfig): Pr
     if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e
   }
   await writeFile(path, applyAgentsSection(existing, agentsSection(stack)))
-  return path
+  const written = [path]
+  const claude = join(root, CLAUDE_FILE)
+  if (!existsSync(claude)) {
+    await writeFile(claude, CLAUDE_CONTENT)
+    written.push(claude)
+  }
+  return written
 }

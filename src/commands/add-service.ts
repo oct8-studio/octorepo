@@ -99,7 +99,7 @@ export async function runAddService(
   const root = await patchRootFiles(opts.cwd, generated)
   Object.assign(tree, root.tree)
   const written = await writeTree(opts.cwd, tree, { mode: 'update' })
-  written.push(await refreshAgentsSection(opts.cwd, stack))
+  written.push(...(await refreshAgentsSection(opts.cwd, stack)))
 
   const vars = plugin.env({ stack, scope: `@${stack.name}`, versions: VERSIONS }, 'localhost')
   for (const app of stack.apps.filter((a) => a.kind === 'backend')) {

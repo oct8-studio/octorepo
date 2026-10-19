@@ -2,7 +2,7 @@ import { stringify } from 'yaml'
 import { MANIFEST_FILE } from '../meta'
 import type { Manifest } from '../model/stack'
 import type { ProjectContext } from '../plugins/types'
-import { agentsSection, kbeeHint } from './agents'
+import { agentsSection, CLAUDE_CONTENT, CLAUDE_FILE, kbeeHint } from './agents'
 import { type FileTree, json } from './tree'
 
 // Build output and generated dirs of every supported framework, so apps need no own .gitignore.
@@ -282,6 +282,6 @@ export type HelloResponse = { message: string }
     '.github/workflows/ci.yml': ci(opts.ciBuildCommand ?? 'pnpm build'),
     'README.md': readme(manifest),
     'AGENTS.md': `# AGENTS.md\n\n${agentsSection(manifest)}`,
-    'CLAUDE.md': '@AGENTS.md\n',
+    [CLAUDE_FILE]: CLAUDE_CONTENT,
   }
 }

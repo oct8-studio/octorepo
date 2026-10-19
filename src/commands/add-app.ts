@@ -135,7 +135,7 @@ export async function runAddApp(opts: AddAppOptions, reg: Registry): Promise<Add
   const root = await patchRootFiles(opts.cwd, generated)
   Object.assign(tree, root.tree)
   const written = await writeTree(opts.cwd, tree, { mode: 'update' })
-  written.push(await refreshAgentsSection(opts.cwd, stack))
+  written.push(...(await refreshAgentsSection(opts.cwd, stack)))
 
   const manual =
     opts.install === undefined
