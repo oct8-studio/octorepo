@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AppSpec, StackConfig } from '../../src/model/stack'
 import { Registry } from '../../src/plugins/registry'
-import { validateStack } from '../../src/rules'
+import { appNameProblem, validateStack } from '../../src/rules'
 
 const reg = new Registry()
   .registerFramework({
@@ -66,6 +66,32 @@ describe('validateStack', () => {
   it('flags duplicate names', () => {
     const r = validateStack(stack([be('api'), be('api')]), reg)
     expect(r.errors.some((e) => e.rule === 'app-name-valid' && e.app === 'api')).toBe(true)
+  })
+
+  it('flags app names that collide with generated package names', () => {
+    const r = validateStack(stack([fe('api-client'), be('api'), fe('ui-react')]), reg)
+    const errs = r.errors.filter((e) => e.rule === 'app-name-valid')
+    expect(errs.map((e) => e.app)).toEqual(['api-client', 'ui-react'])
+    expect(errs[0]?.message).toBe(
+      'App name "api-client" collides with the generated package @acme/api-client (typed client of backend "api")',
+    )
+    expect(errs[1]?.message).toContain('@acme/ui-react')
+  })
+
+  it('appNameProblem applies the same rules to one new app', () => {
+    expect(appNameProblem({ name: 'Api', kind: 'backend' }, [])).toContain('must match')
+    expect(appNameProblem({ name: 'types', kind: 'backend' }, [])).toContain('reserved')
+    expect(appNameProblem({ name: 'web', kind: 'frontend' }, [fe('web')])).toBe(
+      'is a duplicate app name',
+    )
+    expect(appNameProblem({ name: 'api-client', kind: 'frontend' }, [be('api')])).toContain(
+      'typed client of backend "api"',
+    )
+    // The reverse: a new backend whose client package would collide with an existing app.
+    expect(appNameProblem({ name: 'api', kind: 'backend' }, [fe('api-client')])).toBe(
+      'would generate package api-client, which collides with app "api-client"',
+    )
+    expect(appNameProblem({ name: 'api', kind: 'backend' }, [fe('web')])).toBeUndefined()
   })
 
   it('flags invalid project name', () => {

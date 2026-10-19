@@ -1,4 +1,4 @@
-import type { StackConfig } from '../model/stack'
+import type { AppSpec, StackConfig } from '../model/stack'
 import type { Registry } from '../plugins/registry'
 
 export interface Issue {
@@ -29,6 +29,33 @@ function nameProblem(name: string): string | undefined {
   return undefined
 }
 
+type NamedApp = Pick<AppSpec, 'name' | 'kind'>
+
+/** Workspace packages the generator creates next to the apps (unscoped name → what it is). */
+function generatedPackages(apps: NamedApp[]): Map<string, string> {
+  const pkgs = new Map([['ui-react', 'shared React UI package']])
+  for (const a of apps) {
+    if (a.kind === 'backend') pkgs.set(`${a.name}-client`, `typed client of backend "${a.name}"`)
+  }
+  return pkgs
+}
+
+/**
+ * Why `app` cannot join `existing` (format, reserved, duplicate or a clash with a generated
+ * package name), or undefined. Prompts use it to validate names inline with validateStack's rules.
+ */
+export function appNameProblem(app: NamedApp, existing: NamedApp[]): string | undefined {
+  const problem = nameProblem(app.name)
+  if (problem) return problem
+  const key = app.name.toLowerCase()
+  if (existing.some((e) => e.name.toLowerCase() === key)) return 'is a duplicate app name'
+  const generated = generatedPackages([...existing, app]).get(app.name)
+  if (generated) return `collides with the generated package ${app.name} (${generated})`
+  const clash = app.kind === 'backend' && existing.find((e) => e.name === `${app.name}-client`)
+  if (clash) return `would generate package ${clash.name}, which collides with app "${clash.name}"`
+  return undefined
+}
+
 const atLeastOneApp: Rule = {
   id: 'at-least-one-app',
   check: (stack) => ({
@@ -47,11 +74,18 @@ const appNameValid: Rule = {
       )
     }
     const seen = new Set<string>()
+    const generated = generatedPackages(stack.apps)
     for (const app of stack.apps) {
       // Case-insensitive uniqueness: directories collide on case-insensitive filesystems.
       const key = app.name.toLowerCase()
+      const pkg = generated.get(app.name)
       const problem =
-        nameProblem(app.name) ?? (seen.has(key) ? 'is a duplicate app name' : undefined)
+        nameProblem(app.name) ??
+        (seen.has(key) ? 'is a duplicate app name' : undefined) ??
+        // Apps and generated packages share the @<project>/ scope.
+        (pkg
+          ? `collides with the generated package @${stack.name}/${app.name} (${pkg})`
+          : undefined)
       seen.add(key)
       if (problem) issues.push(err('app-name-valid', `App name "${app.name}" ${problem}`, app.name))
     }
