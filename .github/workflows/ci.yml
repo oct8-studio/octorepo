@@ -31,7 +31,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/smoke"
           cd "$RUNNER_TEMP/smoke"
           npm init -y > /dev/null
-          npm install --no-audit --no-fund "$RUNNER_TEMP"/pack/octorepo-*.tgz
+          npm install --no-audit --no-fund "$RUNNER_TEMP"/pack/oct8-octorepo-*.tgz
           npx octorepo create "$RUNNER_TEMP/smoke/x" --tool turbo --app backend:api:express --no-install --no-git --json
 
   matrix:
