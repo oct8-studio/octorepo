@@ -17,6 +17,8 @@ describe('turbo plugin', () => {
       'openapi.json',
       '.next/**',
       '!.next/cache/**',
+      '.output/**',
+      'build/**',
     ])
     expect(turbo.tasks.typecheck.dependsOn).toEqual(['build'])
     expect(turbo.tasks.test.dependsOn).toEqual(['build'])
@@ -44,6 +46,8 @@ describe('nx plugin', () => {
       '{projectRoot}/openapi.json',
       '{projectRoot}/.next',
       '!{projectRoot}/.next/cache',
+      '{projectRoot}/.output',
+      '{projectRoot}/build',
     ])
     expect(nx.targetDefaults.build.cache).toBe(true)
     expect(nx.targetDefaults.typecheck.dependsOn).toEqual(['build'])

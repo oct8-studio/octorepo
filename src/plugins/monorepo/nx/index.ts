@@ -29,6 +29,8 @@ export const nxPlugin: MonorepoPlugin & { ciBuildCommand: string } = {
               '{projectRoot}/openapi.json',
               '{projectRoot}/.next',
               '!{projectRoot}/.next/cache',
+              '{projectRoot}/.output',
+              '{projectRoot}/build',
             ],
             cache: true,
           },

@@ -22,7 +22,16 @@ export const turboPlugin: MonorepoPlugin & { ciBuildCommand: string } = {
         tasks: {
           build: {
             dependsOn: ['^build'],
-            outputs: ['dist/**', 'openapi.json', '.next/**', '!.next/cache/**'],
+            // dist (Vite, Astro, React Router, packages), .next, .output (Nuxt, TanStack Start,
+            // SolidStart), build (SvelteKit).
+            outputs: [
+              'dist/**',
+              'openapi.json',
+              '.next/**',
+              '!.next/cache/**',
+              '.output/**',
+              'build/**',
+            ],
           },
           typecheck: { dependsOn: ['build'] },
           test: { dependsOn: ['build'] },
