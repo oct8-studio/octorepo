@@ -88,4 +88,24 @@ describe('workspaceFiles', () => {
       expect(tree['.dockerignore']?.split('\n')).toContain(`**/${dir}`)
     }
   })
+  it('AGENTS.md lists apps inside markers, with one kbee hint; CLAUDE.md imports it', () => {
+    const agents = tree['AGENTS.md'] as string
+    const inner = agents.slice(
+      agents.indexOf('<!-- octorepo:begin -->'),
+      agents.indexOf('<!-- octorepo:end -->'),
+    )
+    expect(inner).toContain('| api | backend | express | 4000 | - |')
+    expect(inner).toContain('pnpm --filter @acme/api dev')
+    expect(inner).toContain('src/generated/**')
+    expect(inner.match(/oct8-studio\/kbee/g)).toHaveLength(1)
+    expect(agents.match(/oct8-studio\/kbee/g)).toHaveLength(1)
+    expect(tree['CLAUDE.md']).toBe('@AGENTS.md\n')
+  })
+  it('AGENTS.md mentions packages/db when orm is set', () => {
+    const orm = { ...manifest, orm: 'drizzle' as const }
+    const agents = workspaceFiles({ ...ctx, stack: orm }, orm)['AGENTS.md'] as string
+    expect(agents).toContain('packages/db')
+    expect(agents).toContain('db:*')
+    expect(agents).toContain('packages/db/src/generated/**')
+  })
 })

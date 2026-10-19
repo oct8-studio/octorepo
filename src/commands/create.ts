@@ -1,4 +1,5 @@
 import { basename, resolve } from 'node:path'
+import { kbeeHint } from '../engine/agents'
 import { generateProject } from '../engine/generate'
 import { writeTree } from '../engine/write'
 import { CliError } from '../model/errors'
@@ -37,5 +38,7 @@ export async function runCreate(opts: CreateOptions, reg: Registry): Promise<Cre
   const root = resolve(opts.cwd, opts.dir ?? stack.name)
   await writeTree(root, generateProject(stack, reg), { mode: 'create', force: opts.force })
   const manual = await runPostSteps(root, { install: opts.install, git: opts.git })
+  // Human output only: --json stdout stays pure.
+  if (!opts.json) process.stderr.write(`\n${kbeeHint()}\n`)
   return { root, warnings, fixes, manual }
 }

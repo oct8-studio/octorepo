@@ -261,4 +261,37 @@ describe('runAddApp', () => {
       'service_completed_successfully',
     )
   })
+
+  it('add app refreshes only the AGENTS.md section; user text and kbee-once survive', async () => {
+    const path = join(root, 'AGENTS.md')
+    const orig = await readFile(path, 'utf8')
+    await writeFile(path, `ABOVE\n\n${orig}\nBELOW no newline`)
+    await runAddApp(
+      { cwd: root, json: true, app: { name: 'billing', kind: 'backend', framework: 'express' } },
+      reg,
+    )
+    const out = await readFile(path, 'utf8')
+    expect(out.startsWith('ABOVE\n\n# AGENTS.md')).toBe(true)
+    expect(out.endsWith('\nBELOW no newline')).toBe(true)
+    const inner = out.slice(
+      out.indexOf('<!-- octorepo:begin -->'),
+      out.indexOf('<!-- octorepo:end -->'),
+    )
+    expect(inner).toContain('| billing | backend | express |')
+    expect(inner).toContain('| web | frontend | react-vite |')
+    expect(inner.match(/oct8-studio\/kbee/g)).toHaveLength(1)
+    expect(out.match(/octorepo:begin/g)).toHaveLength(1)
+  })
+
+  it('add app appends the section when AGENTS.md has no markers', async () => {
+    const path = join(root, 'AGENTS.md')
+    await writeFile(path, '# Mine\n')
+    await runAddApp(
+      { cwd: root, json: true, app: { name: 'billing', kind: 'backend', framework: 'express' } },
+      reg,
+    )
+    const out = await readFile(path, 'utf8')
+    expect(out.startsWith('# Mine\n\n<!-- octorepo:begin -->')).toBe(true)
+    expect(out).toContain('| billing |')
+  })
 })

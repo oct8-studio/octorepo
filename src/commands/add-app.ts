@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { refreshAgentsSection } from '../engine/agents'
 import { generateProject } from '../engine/generate'
 import { type FileTree, json, mergeJson } from '../engine/tree'
 import { writeTree } from '../engine/write'
@@ -128,6 +129,7 @@ export async function runAddApp(opts: AddAppOptions, reg: Registry): Promise<Add
     else if (isToolOwned(path)) tree[path] = await mergeWithDisk(opts.cwd, path, content)
   }
   const written = await writeTree(opts.cwd, tree, { mode: 'update' })
+  written.push(await refreshAgentsSection(opts.cwd, stack))
 
   const manual =
     opts.install === undefined
