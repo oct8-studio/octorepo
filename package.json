@@ -1,6 +1,6 @@
 {
   "name": "@oct8/octorepo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Scaffold multi-app Node/TypeScript monorepos (Nx or Turborepo) with frontends, backends and Docker Compose",
   "keywords": [
     "monorepo",
