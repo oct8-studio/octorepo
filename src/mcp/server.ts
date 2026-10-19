@@ -3,9 +3,15 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { CLI_NAME, CLI_VERSION } from '../meta'
 import { formatError } from '../model/errors'
-import { StackConfigSchema } from '../model/stack'
 import type { Registry } from '../plugins/registry'
-import { addAppInput, addServiceInput, createInput, readManifestInput, toolHandlers } from './tools'
+import {
+  addAppInput,
+  addServiceInput,
+  createInput,
+  readManifestInput,
+  toolHandlers,
+  validateStackInput,
+} from './tools'
 
 const INSTRUCTIONS = `Scaffolds and extends pnpm monorepos (Turborepo or Nx) with frontends, backends, typed API clients and Docker Compose services.
 Call list_options first, then validate_stack until it has no errors, then create. Use read_manifest, add_app and add_service on an existing repo.`
@@ -41,7 +47,7 @@ export function createMcpServer(reg: Registry, opts: { cwd?: string } = {}): Mcp
     {
       description:
         'Check a stack config without writing anything. Returns the normalized stack (ports assigned), errors, warnings and the fixes that were applied.',
-      inputSchema: StackConfigSchema,
+      inputSchema: validateStackInput,
       annotations: { readOnlyHint: true },
     },
     (input) => reply(() => tools.validate_stack(input)),

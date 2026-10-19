@@ -3,11 +3,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
+import { runAddApp } from '../../src/commands/add-app'
 import { runAddService } from '../../src/commands/add-service'
 import { runCreate } from '../../src/commands/create'
 import { CliError, ManifestError } from '../../src/model/errors'
 import type { StackConfig } from '../../src/model/stack'
 import { defaultRegistry } from '../../src/plugins/registry'
+import { applyPreset } from '../../src/presets'
 
 const config: StackConfig = {
   name: 'demo',
@@ -124,6 +126,38 @@ describe('runAddService', () => {
     expect(gi.startsWith(old)).toBe(true)
     expect(gi.split('\n')).toEqual(expect.arrayContaining(['.turbo', '.nuxt', '.output']))
     expect(r.written).toContain(join(root, '.gitignore'))
+  })
+
+  it('keeps the preset in the manifest (create --preset saas, then add service and add app)', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'octo-svc-preset-'))
+    const created = await runCreate(
+      {
+        config: applyPreset<StackConfig>('saas', {
+          name: 'demo',
+          monorepoTool: 'turbo',
+          packageManager: 'pnpm',
+          apps: [],
+          services: [],
+        }),
+        cwd,
+        dir: 'repo',
+        install: false,
+        git: false,
+        force: false,
+        json: true,
+        yes: true,
+      },
+      reg,
+    )
+    await runAddService({ cwd: created.root, service: 'rabbitmq', json: true }, reg)
+    expect(JSON.parse(await read(created.root, '.octorepo.json')).preset).toBe('saas')
+    await runAddApp(
+      { cwd: created.root, json: true, app: { name: 'jobs2', kind: 'backend', framework: 'hono' } },
+      reg,
+    )
+    const m = JSON.parse(await read(created.root, '.octorepo.json'))
+    expect(m.preset).toBe('saas')
+    expect(m.services).toEqual(expect.arrayContaining(['rabbitmq', 'mailpit']))
   })
 
   it('refuses outside a generated repo', async () => {

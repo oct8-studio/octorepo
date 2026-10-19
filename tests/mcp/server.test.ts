@@ -148,6 +148,46 @@ describe('octorepo mcp server', () => {
     expect(existsSync(join(cwd, 'q'))).toBe(false)
   })
 
+  it('create with a preset defaults monorepoTool to turbo; without one it is required', async () => {
+    const r = await call('create', {
+      dir: 's',
+      preset: 'saas',
+      stack: {},
+      install: false,
+      git: false,
+    })
+    expect(r.isError).toBeFalsy()
+    const m = JSON.parse(await readFile(join(cwd, 's/.octorepo.json'), 'utf8'))
+    expect(m.monorepoTool).toBe('turbo')
+    expect(m.preset).toBe('saas')
+    const bad = await call('create', {
+      dir: 't',
+      stack: { apps: stack.apps },
+      install: false,
+      git: false,
+    })
+    expect(bad.isError).toBe(true)
+    expect(bad.content[0]?.text).toContain('monorepoTool')
+    expect(existsSync(join(cwd, 't'))).toBe(false)
+  })
+
+  it('a bare stack.preset (without the preset input) is stripped, not half-applied', async () => {
+    const r = await call('create', {
+      dir: 'b',
+      stack: { ...stack, preset: 'saas' },
+      install: false,
+      git: false,
+    })
+    expect(r.isError).toBeFalsy()
+    const m = JSON.parse(await readFile(join(cwd, 'b/.octorepo.json'), 'utf8'))
+    expect(m.preset).toBeUndefined()
+    expect(m.apps.map((a: { name: string }) => a.name)).toEqual(['web', 'api'])
+    const { name: _, ...unnamed } = stack
+    const v = body(await call('validate_stack', { ...unnamed, preset: 'saas' }))
+    expect(v.errors).toEqual([])
+    expect(v.stack.preset).toBeUndefined()
+  })
+
   it('list_options includes the presets', async () => {
     expect(body(await call('list_options')).presets.map((p: { id: string }) => p.id)).toEqual([
       'saas',
@@ -161,7 +201,7 @@ describe('octorepo mcp server', () => {
     const r = await call('create', { dir: 'full', stack, install: false, git: false })
     expect(r.isError).toBe(true)
     expect(r.content[0]?.text).toBe(
-      `Directory ${join(cwd, 'full')} is not empty. Use --force to write into it anyway.`,
+      `Directory ${join(cwd, 'full')} is not empty. Pass an empty or new dir.`,
     )
     expect(existsSync(join(cwd, 'full', '.octorepo.json'))).toBe(false)
   })

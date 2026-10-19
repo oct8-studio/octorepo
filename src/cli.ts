@@ -8,7 +8,6 @@ import { runCreate } from './commands/create'
 import { parseAppFlag, parseUses } from './commands/flags'
 import { formatOptions, listOptions } from './commands/options'
 import { answer, appNameValidator } from './commands/prompts'
-import { runMcpServer } from './mcp/server'
 import { CLI_NAME, CLI_VERSION } from './meta'
 import { CliError, formatError } from './model/errors'
 import { type AppKind, type AppSpec, parseStackConfig, type StackConfig } from './model/stack'
@@ -243,7 +242,11 @@ program
 program
   .command('mcp')
   .description('Run the MCP server on stdio (for AI agents)')
-  .action(() => runMcpServer(defaultRegistry()))
+  .action(async () => {
+    // Loaded on demand so other commands don't pay for the MCP SDK's import cost.
+    const { runMcpServer } = await import('./mcp/server')
+    await runMcpServer(defaultRegistry())
+  })
 
 try {
   await program.parseAsync()

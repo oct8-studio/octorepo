@@ -83,6 +83,7 @@ export async function runAddService(
     apps: current.apps,
     services: [...current.services, opts.service],
     ...(current.orm ? { orm: current.orm } : {}),
+    ...(current.preset ? { preset: current.preset } : {}),
   }
   const { stack, errors, warnings, fixes } = validateStack(config, reg)
   if (errors.length || !plugin) {

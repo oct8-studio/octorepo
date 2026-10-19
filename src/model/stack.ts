@@ -52,6 +52,12 @@ export const StackConfigSchema = z.object({
   preset: z.string().optional(),
 })
 
+/**
+ * What `--config`, MCP `create` and `validate_stack` accept: a bare `preset` key is stripped,
+ * since presets are expanded only by `--preset` / the MCP `preset` input (the manifest keeps it).
+ */
+export const StackInputSchema = StackConfigSchema.omit({ preset: true })
+
 export const ManifestSchema = StackConfigSchema.extend({
   schemaVersion: z.literal(1),
   cliVersion: z.string().min(1),
@@ -64,7 +70,7 @@ function formatIssues(error: z.ZodError): string {
 }
 
 export function parseStackConfig(input: unknown): StackConfig {
-  const result = StackConfigSchema.safeParse(input)
+  const result = StackInputSchema.safeParse(input)
   if (!result.success) throw new CliError(formatIssues(result.error))
   return result.data
 }
