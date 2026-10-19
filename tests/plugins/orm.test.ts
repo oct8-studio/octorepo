@@ -130,6 +130,22 @@ describe('prisma plugin', () => {
     expect(tree['packages/db/Dockerfile']).toContain('RUN apk add --no-cache openssl\n')
     expect(prismaPlugin.allowBuilds).toEqual(['prisma', '@prisma/engines'])
   })
+  it('starts dev after its own build so two prisma generate runs never overlap', () => {
+    const turbo = JSON.parse(tree['packages/db/turbo.json'] as string)
+    expect(turbo).toMatchObject({
+      extends: ['//'],
+      tasks: { dev: { dependsOn: ['^build', 'build'] } },
+    })
+    expect(JSON.parse(tree['packages/db/package.json'] as string).nx).toBeUndefined()
+    const base = ctx('prisma')
+    const nx = prismaPlugin.generate({ ...base, stack: { ...base.stack, monorepoTool: 'nx' } })
+    expect(nx['packages/db/turbo.json']).toBeUndefined()
+    expect(JSON.parse(nx['packages/db/package.json'] as string).nx.targets.dev.dependsOn).toEqual([
+      '^build',
+      'build',
+    ])
+    expect(drizzlePlugin.generate(ctx('drizzle'))['packages/db/turbo.json']).toBeUndefined()
+  })
 })
 
 describe('backendDb', () => {

@@ -45,6 +45,8 @@ export function dbPackageFiles(
     configFiles: string[]
     /** Paths biome must skip (ORM-generated code). */
     lintIgnore?: string[]
+    /** Extra top-level package.json keys, e.g. Nx target overrides. */
+    extra?: Record<string, unknown>
   },
 ): FileTree {
   const v = ctx.versions
@@ -71,6 +73,7 @@ export function dbPackageFiles(
       ...opts.scripts,
     },
     dependencies: opts.dependencies,
+    ...opts.extra,
     devDependencies: {
       [`${ctx.scope}/config`]: 'workspace:*',
       '@biomejs/biome': v['@biomejs/biome'],
