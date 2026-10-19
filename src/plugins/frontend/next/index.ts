@@ -140,9 +140,10 @@ ENV NODE_ENV=production
 ENV PORT=${port}
 ENV HOSTNAME=0.0.0.0
 WORKDIR /app
-COPY --from=build /repo/${dir}/.next/standalone ./
-COPY --from=build /repo/${dir}/.next/static ./${dir}/.next/static
-COPY --from=build /repo/${dir}/public ./${dir}/public
+COPY --from=build --chown=node:node /repo/${dir}/.next/standalone ./
+COPY --from=build --chown=node:node /repo/${dir}/.next/static ./${dir}/.next/static
+COPY --from=build --chown=node:node /repo/${dir}/public ./${dir}/public
+USER node
 EXPOSE ${port}
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s CMD node -e "fetch('http://127.0.0.1:' + process.env.PORT + '/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 CMD ${JSON.stringify(['node', `${dir}/server.js`])}

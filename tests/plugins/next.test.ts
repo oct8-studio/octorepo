@@ -73,6 +73,7 @@ describe('nextPlugin', () => {
     expect(d).toContain('apps/site/.next/static')
     expect(d).toContain('CMD ["node","apps/site/server.js"]')
     expect(d).toContain('EXPOSE 3000')
+    expect(d).toContain('USER node')
   })
   it('emits no fetch helper or client imports without backends', () => {
     const t = nextPlugin.generate({ ...ctx, app: { ...ctx.app, uses: [] }, backends: [] })

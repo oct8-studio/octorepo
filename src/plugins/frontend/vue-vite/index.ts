@@ -50,7 +50,7 @@ export default defineComponent({
       (b) => `async function load${pascalCase(b.name)}(): Promise<string> {
   try {
     const { data } = await ${clientVar(b)}.GET('/hello')
-    return data?.message ?? 'No response'
+    return data?.message ?? 'Backend unreachable'
   } catch {
     return 'Backend unreachable'
   }
@@ -191,7 +191,8 @@ function dockerfile(ctx: AppContext): string {
     .join('')
   return `${PNPM_BUILD_STAGE}${args}RUN pnpm --filter ${pkg}... build
 
-FROM nginx:alpine AS runtime
+# Official non-root nginx build (runs as uid 101); it listens on the app port from nginx.conf.
+FROM nginxinc/nginx-unprivileged:alpine AS runtime
 COPY apps/${ctx.app.name}/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /repo/apps/${ctx.app.name}/dist /usr/share/nginx/html
 EXPOSE ${ctx.app.port}

@@ -72,7 +72,7 @@ describe('vueVitePlugin', () => {
       'COPY package.json ./\nRUN pnpm --version\nCOPY . .\nRUN pnpm install --frozen-lockfile',
     )
     expect(d).toContain('pnpm --filter @acme/web... build')
-    expect(d).toContain('FROM nginx:alpine')
+    expect(d).toContain('FROM nginxinc/nginx-unprivileged:alpine')
     expect(d).toContain('ARG VITE_API_URL=http://localhost:4000')
     expect(d).toContain('EXPOSE 3000')
   })
