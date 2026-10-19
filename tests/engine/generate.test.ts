@@ -64,8 +64,15 @@ describe('generateProject', () => {
     expect(ws.strictDepBuilds).toBe(false)
     expect(ws.allowBuilds).toEqual({ esbuild: true })
   })
-  it('sets each backend CORS_ORIGINS to the frontends', () => {
-    expect(tree['apps/api/.env.example']).toContain('CORS_ORIGINS=http://localhost:3000\n')
+  it('documents each backend CORS_ORIGINS default and adds service URLs', () => {
+    expect(tree['apps/api/.env.example']).toContain('# CORS_ORIGINS=http://localhost:3000\n')
+    expect(tree['apps/api/.env.example']).toContain('DATABASE_URL=postgres://')
+  })
+  it('writes a local .env next to every app .env.example', () => {
+    for (const app of ['api', 'web']) {
+      expect(tree[`apps/${app}/.env`], app).toBe(tree[`apps/${app}/.env.example`])
+    }
+    expect(tree['.env']).toBeUndefined()
   })
   it('generates ui-react only with a react frontend and one client per backend', () => {
     const backendOnly = generateProject(

@@ -72,6 +72,9 @@ pnpm typecheck
 pnpm test
 \`\`\`
 
+Each app reads local-development settings from its own \`.env\` (a gitignored copy of
+\`.env.example\`). Backends allow CORS from the frontends that use them unless \`CORS_ORIGINS\` is set.
+
 Requires Node 24 and pnpm.
 `
 }

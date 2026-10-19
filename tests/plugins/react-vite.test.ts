@@ -34,6 +34,12 @@ describe('reactVitePlugin', () => {
     expect(pkg.files).toEqual(['dist'])
     expect(tree['apps/web/src/App.tsx']).toContain("apiClient.GET('/hello')")
     expect(tree['apps/web/src/generated/api.ts']).toContain('as createApiClient }')
+    expect(tree['apps/web/src/generated/api.ts']).toContain(
+      "const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'",
+    )
+    expect(tree['apps/web/src/generated/api.ts']).toContain(
+      'export const apiClient = createApiClient(apiUrl)',
+    )
     expect(tree['apps/web/src/App.tsx']).toContain('async function loadApi()')
     expect(tree['apps/web/src/App.tsx']).toContain('load={loadApi}')
     expect(JSON.stringify(tree)).not.toMatch(/\{\{\w+\}\}/)

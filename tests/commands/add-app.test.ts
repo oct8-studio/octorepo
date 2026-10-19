@@ -75,6 +75,15 @@ describe('runAddApp', () => {
     const gen = await read(root, 'apps/admin/src/generated/api.ts')
     expect(gen).toContain('@demo/api-client')
     expect(gen).toContain('@demo/billing-client')
+    // Backends' CORS defaults are tool-owned and pick up the new frontend; their .env is not touched.
+    const admin = JSON.parse(await read(root, '.octorepo.json')).apps.find(
+      (a: { name: string }) => a.name === 'admin',
+    )
+    expect(await read(root, 'apps/api/src/generated/cors.ts')).toContain(
+      `['http://localhost:3000', 'http://localhost:${admin.port}']`,
+    )
+    expect(await read(root, 'apps/api/.env')).toContain('# CORS_ORIGINS=http://localhost:3000\n')
+    expect(existsSync(join(root, 'apps/admin/.env'))).toBe(true)
   })
 
   it('rejects a missing manifest and writes nothing', async () => {

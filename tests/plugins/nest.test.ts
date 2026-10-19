@@ -47,6 +47,39 @@ describe('nestPlugin', () => {
     expect(tree['apps/core/src/write-openapi.ts']).toBeDefined()
     expect(JSON.stringify(tree)).not.toMatch(/\{\{\w+\}\}/)
   })
+  it('loads .env for local dev without overriding the environment', () => {
+    expect(tree['apps/core/src/main.ts']).toContain('process.loadEnvFile()')
+    expect(tree['apps/core/src/main.ts']).toContain("code !== 'ENOENT'")
+  })
+  it('defaults CORS to the frontends that use it', () => {
+    expect(tree['apps/core/src/app.ts']).toContain(
+      "import { DEFAULT_CORS_ORIGINS } from './generated/cors'",
+    )
+    expect(tree['apps/core/src/app.ts']).toContain(
+      "process.env.CORS_ORIGINS ?? DEFAULT_CORS_ORIGINS.join(',')",
+    )
+    expect(tree['apps/core/src/generated/cors.ts']).toContain(
+      'export const DEFAULT_CORS_ORIGINS: string[] = []',
+    )
+    const used = nestPlugin.generate({
+      ...ctx,
+      stack: {
+        ...ctx.stack,
+        apps: [
+          ctx.app,
+          { name: 'web', kind: 'frontend', framework: 'next', port: 3000, uses: ['core'] },
+          { name: 'admin', kind: 'frontend', framework: 'react-vite', port: 3001, uses: ['core'] },
+          { name: 'other', kind: 'frontend', framework: 'next', port: 3002 },
+        ],
+      },
+    })
+    expect(used['apps/core/src/generated/cors.ts']).toContain(
+      "export const DEFAULT_CORS_ORIGINS: string[] = ['http://localhost:3000', 'http://localhost:3001']",
+    )
+    expect(used['apps/core/.env.example']).toContain(
+      '# CORS_ORIGINS=http://localhost:3000,http://localhost:3001',
+    )
+  })
   it('generates a pnpm multi-stage Dockerfile', () => {
     const d = nestPlugin.dockerfile(ctx)
     // pnpm (pinned via packageManager) is fetched in a layer cached on the root package.json only

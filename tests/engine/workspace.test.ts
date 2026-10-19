@@ -55,6 +55,7 @@ describe('workspaceFiles', () => {
     expect(root.scripts).toBeUndefined()
     expect(tree['.github/workflows/ci.yml']).toContain('pnpm install')
     expect(tree['README.md']).toContain('4000')
+    expect(tree['README.md']).toContain('gitignored copy of\n`.env.example`')
     expect(JSON.parse(tree['biome.json'] as string).files.includes).toContain('!**/openapi.json')
   })
 })

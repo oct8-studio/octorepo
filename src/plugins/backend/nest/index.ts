@@ -1,3 +1,4 @@
+import { backendCorsDefaults } from '../../../engine/cors'
 import { nodeServiceDockerfile } from '../../../engine/docker'
 import { json, readPluginFiles } from '../../../engine/tree'
 import type { AppContext, FileTree, FrameworkPlugin } from '../../types'
@@ -5,13 +6,16 @@ import type { AppContext, FileTree, FrameworkPlugin } from '../../types'
 function generate(ctx: AppContext): FileTree {
   const { app, scope, versions: v } = ctx
   const dir = `apps/${app.name}`
+  const cors = backendCorsDefaults(ctx)
   const files = readPluginFiles(new URL('./', import.meta.url), {
     name: app.name,
     scope,
     port: String(app.port),
+    corsEnv: cors.envLine,
   })
   const tree: FileTree = {}
   for (const [path, content] of Object.entries(files)) tree[`${dir}/${path}`] = content
+  tree[`${dir}/src/generated/cors.ts`] = cors.file
   // No "type": "module": the app compiles to CommonJS and consumes the types package via its `require` export.
   // `files` is required: `pnpm deploy --prod --legacy` otherwise honors .gitignore and drops dist/ (R12).
   tree[`${dir}/package.json`] = json({

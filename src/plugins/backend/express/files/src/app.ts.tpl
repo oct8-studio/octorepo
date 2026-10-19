@@ -1,5 +1,6 @@
 import { HelloResponseSchema } from '{{scope}}/types'
 import express, { type Express, type NextFunction, type Request, type Response } from 'express'
+import { DEFAULT_CORS_ORIGINS } from './generated/cors.js'
 
 export function parseOrigins(value: string | undefined): string[] {
   return (value ?? '')
@@ -10,7 +11,7 @@ export function parseOrigins(value: string | undefined): string[] {
 
 export function createApp(): Express {
   const app = express()
-  const origins = parseOrigins(process.env.CORS_ORIGINS)
+  const origins = parseOrigins(process.env.CORS_ORIGINS ?? DEFAULT_CORS_ORIGINS.join(','))
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     const origin = req.headers.origin

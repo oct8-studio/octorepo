@@ -5,7 +5,7 @@ import type { Registry } from '../plugins/registry'
 import type { AppContext, FileTree, ProjectContext, ResolvedApp } from '../plugins/types'
 import { VERSIONS } from '../versions'
 import { restClientFiles } from './client'
-import { composeFiles, corsOrigins, serviceEnv } from './compose'
+import { composeFiles, serviceEnv } from './compose'
 import { mergeTrees } from './tree'
 import { uiPackageFiles } from './ui'
 import { workspaceFiles } from './workspace'
@@ -19,14 +19,8 @@ function resolve(app: StackConfig['apps'][number]): ResolvedApp {
   return { ...app, port: app.port }
 }
 
-/** Backend `.env.example`: the plugin's template with CORS_ORIGINS and service URLs set for this stack. */
-function backendEnv(
-  tree: FileTree,
-  path: string,
-  cors: string,
-  extra: Record<string, string>,
-): string {
-  const base = (tree[path] ?? '').replace(/^CORS_ORIGINS=.*$/m, `CORS_ORIGINS=${cors}`)
+/** Appends service URLs (e.g. DATABASE_URL on localhost) to a backend's `.env.example`. */
+function withServiceEnv(base: string, extra: Record<string, string>): string {
   const lines = Object.entries(extra).map(([k, v]) => `${k}=${v}\n`)
   return `${base}${base && !base.endsWith('\n') ? '\n' : ''}${lines.join('')}`
 }
@@ -48,7 +42,6 @@ export function generateProject(stack: StackConfig, reg: Registry): FileTree {
     trees.push(uiPackageFiles(ctx, 'react'))
   }
 
-  const cors = corsOrigins(stack)
   const localServiceEnv = serviceEnv(ctx, reg, 'localhost')
   for (const app of apps) {
     const plugin = reg.framework(app.framework, app.kind)
@@ -60,10 +53,10 @@ export function generateProject(stack: StackConfig, reg: Registry): FileTree {
     }
     const tree = plugin.generate(appCtx)
     tree[`apps/${app.name}/Dockerfile`] = plugin.dockerfile(appCtx)
-    if (app.kind === 'backend') {
-      const env = `apps/${app.name}/.env.example`
-      tree[env] = backendEnv(tree, env, cors, localServiceEnv)
-    }
+    const example = `apps/${app.name}/.env.example`
+    if (app.kind === 'backend') tree[example] = withServiceEnv(tree[example] ?? '', localServiceEnv)
+    // A real, gitignored .env with the same local-dev values, so `pnpm dev` works out of the box.
+    if (tree[example] !== undefined) tree[`apps/${app.name}/.env`] = tree[example]
     trees.push(tree)
   }
 

@@ -37,6 +37,39 @@ describe('expressPlugin', () => {
     expect(tree['apps/api/src/app.test.ts']).toBeDefined()
     expect(JSON.stringify(tree)).not.toMatch(/\{\{\w+\}\}/)
   })
+  it('loads .env for local dev without overriding the environment', () => {
+    expect(tree['apps/api/src/main.ts']).toContain('process.loadEnvFile()')
+    expect(tree['apps/api/src/main.ts']).toContain("code !== 'ENOENT'")
+  })
+  it('defaults CORS to the frontends that use it', () => {
+    expect(tree['apps/api/src/app.ts']).toContain(
+      "import { DEFAULT_CORS_ORIGINS } from './generated/cors.js'",
+    )
+    expect(tree['apps/api/src/app.ts']).toContain(
+      "process.env.CORS_ORIGINS ?? DEFAULT_CORS_ORIGINS.join(',')",
+    )
+    expect(tree['apps/api/src/generated/cors.ts']).toContain(
+      'export const DEFAULT_CORS_ORIGINS: string[] = []',
+    )
+    const used = expressPlugin.generate({
+      ...ctx,
+      stack: {
+        ...ctx.stack,
+        apps: [
+          ctx.app,
+          { name: 'web', kind: 'frontend', framework: 'next', port: 3000, uses: ['api'] },
+          { name: 'admin', kind: 'frontend', framework: 'react-vite', port: 3001, uses: ['api'] },
+          { name: 'other', kind: 'frontend', framework: 'next', port: 3002 },
+        ],
+      },
+    })
+    expect(used['apps/api/src/generated/cors.ts']).toContain(
+      "export const DEFAULT_CORS_ORIGINS: string[] = ['http://localhost:3000', 'http://localhost:3001']",
+    )
+    expect(used['apps/api/.env.example']).toContain(
+      '# CORS_ORIGINS=http://localhost:3000,http://localhost:3001',
+    )
+  })
   it('generates a pnpm multi-stage Dockerfile', () => {
     const d = expressPlugin.dockerfile(ctx)
     // pnpm (pinned via packageManager) is fetched in a layer cached on the root package.json only
