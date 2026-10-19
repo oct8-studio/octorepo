@@ -124,7 +124,7 @@ describe('octorepo mcp server', () => {
     const m = JSON.parse(await readFile(join(cwd, 'p/.octorepo.json'), 'utf8'))
     expect(m.preset).toBe('api-platform')
     expect(m.apps.map((a: { name: string }) => a.name)).toEqual([
-      'gateway',
+      'edge',
       'users',
       'billing',
       'docs',

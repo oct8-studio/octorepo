@@ -26,13 +26,12 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: 'api-platform',
-    description:
-      'Hono gateway, NestJS users, Fastify billing, Astro docs; postgres, rabbitmq; Prisma',
+    description: 'Hono edge, NestJS users, Fastify billing, Astro docs; postgres, rabbitmq; Prisma',
     apps: [
-      { name: 'gateway', kind: 'backend', framework: 'hono' },
+      { name: 'edge', kind: 'backend', framework: 'hono' },
       { name: 'users', kind: 'backend', framework: 'nest' },
       { name: 'billing', kind: 'backend', framework: 'fastify' },
-      { name: 'docs', kind: 'frontend', framework: 'astro', uses: ['gateway'] },
+      { name: 'docs', kind: 'frontend', framework: 'astro', uses: ['edge'] },
     ],
     services: ['postgres', 'rabbitmq'],
     orm: 'prisma',

@@ -57,7 +57,7 @@ describe('cli create --preset', () => {
     expect(m.preset).toBe('api-platform')
     expect(m.schemaVersion).toBe(1)
     expect(m.apps.map((a: { name: string }) => a.name)).toEqual([
-      'gateway',
+      'edge',
       'users',
       'billing',
       'docs',

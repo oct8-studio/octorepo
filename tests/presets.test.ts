@@ -31,12 +31,12 @@ describe('presets', () => {
     expect(saas?.orm).toBe('drizzle')
     const plat = findPreset('api-platform')
     expect(plat?.apps.map((a) => `${a.name}:${a.framework}`)).toEqual([
-      'gateway:hono',
+      'edge:hono',
       'users:nest',
       'billing:fastify',
       'docs:astro',
     ])
-    expect(plat?.apps.find((a) => a.name === 'docs')?.uses).toEqual(['gateway'])
+    expect(plat?.apps.find((a) => a.name === 'docs')?.uses).toEqual(['edge'])
     expect(plat?.services).toEqual(['postgres', 'rabbitmq'])
     expect(plat?.orm).toBe('prisma')
   })

@@ -95,6 +95,7 @@ describe('validateStack', () => {
   it('appNameProblem applies the same rules to one new app', () => {
     expect(appNameProblem({ name: 'Api', kind: 'backend' }, [])).toContain('must match')
     expect(appNameProblem({ name: 'types', kind: 'backend' }, [])).toContain('reserved')
+    expect(appNameProblem({ name: 'gateway', kind: 'backend' }, [])).toContain('reserved')
     expect(appNameProblem({ name: 'web', kind: 'frontend' }, [fe('web')])).toBe(
       'is a duplicate app name',
     )
