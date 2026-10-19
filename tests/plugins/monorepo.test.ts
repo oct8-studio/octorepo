@@ -27,6 +27,8 @@ describe('turbo plugin', () => {
   })
   it('writes root scripts and devDependency', () => {
     expect(pkg.scripts.build).toBe('turbo run build')
+    // Large repos have more persistent dev tasks than turbo's default concurrency of 10.
+    expect(pkg.scripts.dev).toBe('turbo run dev --concurrency=64')
     expect(pkg.devDependencies.turbo).toBe(VERSIONS.turbo)
     expect(Object.keys(tree).sort()).toEqual(['package.json', 'turbo.json'])
   })
