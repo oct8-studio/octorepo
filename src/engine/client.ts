@@ -33,9 +33,10 @@ export function restClientFiles(ctx: ProjectContext, backend: AppSpec): FileTree
     },
     dependencies: {
       'openapi-fetch': v['openapi-fetch'],
-      [`${ctx.scope}/${backend.name}`]: 'workspace:*',
     },
     devDependencies: {
+      // Only orders the build after the backend's (it writes openapi.json); never shipped.
+      [`${ctx.scope}/${backend.name}`]: 'workspace:*',
       [`${ctx.scope}/config`]: 'workspace:*',
       '@biomejs/biome': v['@biomejs/biome'],
       '@types/node': v['@types/node'],

@@ -13,9 +13,10 @@ describe('restClientFiles', () => {
   const tree = restClientFiles(ctx, { name: 'api', kind: 'backend', framework: 'express' })
   const pkg = JSON.parse(tree['packages/api-client/package.json'] as string)
 
-  it('names the package and depends on the backend app', () => {
+  it('names the package and dev-depends on the backend app (build order only)', () => {
     expect(pkg.name).toBe('@acme/api-client')
-    expect(pkg.dependencies['@acme/api']).toBe('workspace:*')
+    expect(pkg.devDependencies['@acme/api']).toBe('workspace:*')
+    expect(pkg.dependencies['@acme/api']).toBeUndefined()
     expect(pkg.dependencies['openapi-fetch']).toBe(VERSIONS['openapi-fetch'])
   })
   it('builds from the backend openapi.json with tsdown, dual exports', () => {
