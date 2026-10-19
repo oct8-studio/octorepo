@@ -1,0 +1,35 @@
+{
+  "name": "create-octorepo",
+  "version": "0.1.0",
+  "description": "Scaffold a multi-app Node/TypeScript monorepo with octorepo: npm create octorepo",
+  "type": "module",
+  "bin": {
+    "create-octorepo": "index.js"
+  },
+  "files": [
+    "index.js",
+    "README.md"
+  ],
+  "dependencies": {
+    "octorepo": "0.1.0"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "keywords": [
+    "octorepo",
+    "monorepo",
+    "create",
+    "scaffold",
+    "turborepo",
+    "nx"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/oct8-studio/octorepo#readme",
+  "bugs": "https://github.com/oct8-studio/octorepo/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oct8-studio/octorepo.git",
+    "directory": "create-octorepo"
+  }
+}

@@ -14,7 +14,11 @@ Requires Node >= 22.12 to run the CLI; generated repos target Node 24 (`.nvmrc`,
 npx octorepo create my-repo
 ```
 
-`npm create octorepo` will work once the `create-octorepo` package is published.
+Or, equivalently:
+
+```bash
+npm create octorepo my-repo
+```
 
 Run without flags in a terminal and octorepo asks for the stack interactively; the project name defaults to the directory name (`my-repo` above).
 
