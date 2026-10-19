@@ -3,6 +3,7 @@ import { basename, relative, resolve } from 'node:path'
 import { select, text } from '@clack/prompts'
 import { Command } from 'commander'
 import { readManifest, runAddApp } from './commands/add-app'
+import { runAddService } from './commands/add-service'
 import { runCreate } from './commands/create'
 import { parseAppFlag, parseUses } from './commands/flags'
 import { formatOptions, listOptions } from './commands/options'
@@ -155,6 +156,34 @@ async function addApp(
   for (const cmd of result.manual ?? []) console.log(`  ${cmd}`)
 }
 
+async function addService(
+  serviceArg: string | undefined,
+  flags: { json?: boolean },
+): Promise<void> {
+  const reg = defaultRegistry()
+  const interactive = Boolean(process.stdin.isTTY) && !flags.json
+  if (!serviceArg && !interactive) throw new CliError('Usage: add service <name>')
+  const service =
+    serviceArg ??
+    answer(
+      await select<string>({
+        message: 'Service',
+        options: [...reg.services.values()].map((s) => ({ value: s.id, label: s.label })),
+      }),
+    )
+  const result = await runAddService(
+    { cwd: process.cwd(), service, json: Boolean(flags.json) },
+    reg,
+  )
+  if (flags.json) {
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+    return
+  }
+  for (const f of result.fixes) console.log(`fix: ${f.message}`)
+  for (const w of result.warnings) console.log(`warning: ${w.message}`)
+  console.log(`\n${result.message} (${result.written.length} files written)`)
+}
+
 const program = new Command()
 program.name(CLI_NAME).version(CLI_VERSION)
 program
@@ -172,9 +201,8 @@ program
   .option('--yes', 'never prompt')
   .action(create)
 
-program
-  .command('add')
-  .description('Add to an existing monorepo')
+const add = program.command('add').description('Add to an existing monorepo')
+add
   .command('app [kind] [name] [framework]')
   .description('Add an app: add app <kind> <name> <framework>')
   .option('--uses <names>', 'comma-separated backends a frontend uses')
@@ -182,6 +210,11 @@ program
   .option('--no-install', 'skip pnpm install')
   .option('--json', 'print machine-readable result only')
   .action(addApp)
+add
+  .command('service [name]')
+  .description('Add a docker compose service: add service <name>')
+  .option('--json', 'print machine-readable result only')
+  .action(addService)
 
 program
   .command('options')

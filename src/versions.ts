@@ -99,4 +99,9 @@ export const VERSIONS: Readonly<Record<string, string>> = {
 export const IMAGES = {
   postgres: '18',
   redis: '8',
+  valkey: '9',
+  rabbitmq: '4',
+  mailpit: 'v1',
+  // SeaweedFS publishes no major-version tags, only exact releases.
+  seaweedfs: '4.48',
 } as const

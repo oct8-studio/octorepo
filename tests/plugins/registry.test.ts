@@ -66,6 +66,13 @@ describe('Registry', () => {
         .sort(),
     ).toEqual(['express', 'fastify', 'hono', 'koa', 'nest'])
     expect([...r.uiPackages.keys()].sort()).toEqual(['react', 'solid', 'svelte', 'vue'])
-    expect([...r.services.keys()].sort()).toEqual(['postgres', 'redis'])
+    expect([...r.services.keys()].sort()).toEqual([
+      'mailpit',
+      'postgres',
+      'rabbitmq',
+      'redis',
+      's3',
+      'valkey',
+    ])
   })
 })

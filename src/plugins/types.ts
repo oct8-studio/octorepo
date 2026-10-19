@@ -58,6 +58,10 @@ export interface ServicePlugin {
   label: string
   compose(ctx: ProjectContext): {
     image: string
+    /** Overrides the image's default command, e.g. SeaweedFS's `server -s3`. */
+    command?: string[]
+    /** Fixed container hostname, for images whose data path depends on it (RabbitMQ). */
+    hostname?: string
     ports?: string[]
     environment?: Record<string, string>
     volumes?: string[]

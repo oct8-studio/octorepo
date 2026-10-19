@@ -43,10 +43,17 @@ beforeEach(async () => {
 })
 
 describe('octorepo mcp server', () => {
-  it('exposes exactly the five tools, each with an object input schema', async () => {
+  it('exposes exactly the six tools, each with an object input schema', async () => {
     const { tools } = await client.listTools()
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['add_app', 'create', 'list_options', 'read_manifest', 'validate_stack'].sort(),
+      [
+        'add_app',
+        'add_service',
+        'create',
+        'list_options',
+        'read_manifest',
+        'validate_stack',
+      ].sort(),
     )
     for (const t of tools) {
       expect(t.inputSchema.type).toBe('object')
@@ -135,6 +142,27 @@ describe('octorepo mcp server', () => {
     )
     const after = body(await call('read_manifest', { cwd: 'repo' }))
     expect(after.apps.map((a: { name: string }) => a.name)).toContain('billing')
+  })
+
+  it('add_service adds a service, then is a no-op for the same service', async () => {
+    await call('create', { dir: 'repo', stack, install: false, git: false })
+    const r = await call('add_service', { cwd: 'repo', service: 'mailpit' })
+    expect(r.isError).toBeFalsy()
+    const out = body(r)
+    expect(Object.keys(out).sort()).toEqual(['fixes', 'message', 'warnings', 'written'])
+    expect(out.written).toEqual(expect.arrayContaining([join(cwd, 'repo', 'docker-compose.yml')]))
+    const m = body(await call('read_manifest', { cwd: 'repo' }))
+    expect(m.services).toEqual(['mailpit'])
+    const again = body(await call('add_service', { cwd: 'repo', service: 'mailpit' }))
+    expect(again.written).toEqual([])
+    expect(again.message).toMatch(/already/)
+  })
+
+  it('add_service refuses an unknown service like the CLI', async () => {
+    await call('create', { dir: 'repo', stack, install: false, git: false })
+    const r = await call('add_service', { cwd: 'repo', service: 'kafka' })
+    expect(r.isError).toBe(true)
+    expect(r.content[0]?.text).toMatch(/^Invalid stack:[\s\S]*Unknown service "kafka"/)
   })
 
   it('read_manifest outside a generated repo is an error result', async () => {

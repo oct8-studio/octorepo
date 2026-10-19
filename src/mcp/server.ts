@@ -5,10 +5,10 @@ import { CLI_NAME, CLI_VERSION } from '../meta'
 import { formatError } from '../model/errors'
 import { StackConfigSchema } from '../model/stack'
 import type { Registry } from '../plugins/registry'
-import { addAppInput, createInput, readManifestInput, toolHandlers } from './tools'
+import { addAppInput, addServiceInput, createInput, readManifestInput, toolHandlers } from './tools'
 
 const INSTRUCTIONS = `Scaffolds and extends pnpm monorepos (Turborepo or Nx) with frontends, backends, typed API clients and Docker Compose services.
-Call list_options first, then validate_stack until it has no errors, then create. Use read_manifest and add_app on an existing repo.`
+Call list_options first, then validate_stack until it has no errors, then create. Use read_manifest, add_app and add_service on an existing repo.`
 
 /** The tool's result as JSON text, the same JSON the CLI's `--json` mode prints. */
 async function reply(fn: () => unknown): Promise<CallToolResult> {
@@ -65,6 +65,16 @@ export function createMcpServer(reg: Registry, opts: { cwd?: string } = {}): Mcp
       annotations: { destructiveHint: false, idempotentHint: false },
     },
     (input) => reply(() => tools.add_app(input)),
+  )
+  server.registerTool(
+    'add_service',
+    {
+      description:
+        'Add a docker compose service (see list_options) to the generated repo at cwd. Rewrites the compose file, root .env.example, manifest and AGENTS.md section, and appends the new env vars to each backend .env/.env.example. A service already present is a no-op. Returns { written, warnings, fixes, message }.',
+      inputSchema: addServiceInput,
+      annotations: { destructiveHint: false, idempotentHint: true },
+    },
+    (input) => reply(() => tools.add_service(input)),
   )
   server.registerTool(
     'read_manifest',

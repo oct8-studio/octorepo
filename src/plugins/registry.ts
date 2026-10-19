@@ -21,8 +21,12 @@ import { nxPlugin } from './monorepo/nx'
 import { turboPlugin } from './monorepo/turbo'
 import { drizzlePlugin } from './orm/drizzle'
 import { prismaPlugin } from './orm/prisma'
+import { mailpitPlugin } from './service/mailpit'
 import { postgresPlugin } from './service/postgres'
+import { rabbitmqPlugin } from './service/rabbitmq'
 import { redisPlugin } from './service/redis'
+import { s3Plugin } from './service/s3'
+import { valkeyPlugin } from './service/valkey'
 import type {
   FrameworkPlugin,
   MonorepoPlugin,
@@ -111,6 +115,10 @@ export function defaultRegistry(): Registry {
     .registerFramework(solidStartPlugin)
     .registerService(postgresPlugin)
     .registerService(redisPlugin)
+    .registerService(valkeyPlugin)
+    .registerService(rabbitmqPlugin)
+    .registerService(mailpitPlugin)
+    .registerService(s3Plugin)
     .registerOrm(drizzlePlugin)
     .registerOrm(prismaPlugin)
     .registerUi('react', (ctx) => uiPackageFiles(ctx, 'react'))
