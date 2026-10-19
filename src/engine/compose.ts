@@ -52,7 +52,8 @@ export function composeFiles(ctx: ProjectContext, reg: Registry): FileTree {
     const plugin = reg.framework(app.framework, app.kind)
     const entry: Record<string, unknown> = {
       build: { context: '.', dockerfile: `apps/${app.name}/Dockerfile` },
-      ports: [`${p}:${p}`],
+      // Loopback only: the dev stack is for this machine, not the network.
+      ports: [`127.0.0.1:${p}:${p}`],
     }
     if (app.kind === 'backend') {
       entry.environment = { PORT: String(p), CORS_ORIGINS: cors, ...serviceEnv(ctx, reg) }

@@ -28,10 +28,10 @@ describe('composeFiles', () => {
     expect(compose).toMatch(/^# .*octorepo/)
     expect(compose).toContain('docker-compose.override.yml')
   })
-  it('builds each app from its Dockerfile with a port mapping', () => {
+  it('builds each app from its Dockerfile with a loopback-only port mapping', () => {
     expect(doc.services.api.build).toEqual({ context: '.', dockerfile: 'apps/api/Dockerfile' })
-    expect(doc.services.api.ports).toEqual(['4000:4000'])
-    expect(doc.services.web.ports).toEqual(['3000:3000'])
+    expect(doc.services.api.ports).toEqual(['127.0.0.1:4000:4000'])
+    expect(doc.services.web.ports).toEqual(['127.0.0.1:3000:3000'])
   })
   it('wires backends to services and frontends', () => {
     expect(doc.services.api.depends_on.postgres.condition).toBe('service_healthy')
@@ -50,6 +50,8 @@ describe('composeFiles', () => {
     expect(doc.services.postgres.image).toMatch(/^postgres:\d+-alpine$/)
     expect(doc.services.postgres.healthcheck.test.join(' ')).toContain('pg_isready')
     expect(Object.keys(doc.volumes)).toContain('postgres-data')
+    // Well-known dev credentials: never publish on all interfaces.
+    expect(doc.services.postgres.ports).toEqual(['127.0.0.1:5432:5432'])
     expect(compose).not.toContain('bitnami')
   })
   it('writes a root .env.example with local defaults', () => {
@@ -61,6 +63,7 @@ describe('composeFiles', () => {
     const t = composeFiles({ ...ctx, stack: { ...stack, services: ['redis'] } }, defaultRegistry())
     const d = parse(t['docker-compose.yml'] as string)
     expect(d.services.redis.image).toMatch(/^redis:\d+-alpine$/)
+    expect(d.services.redis.ports).toEqual(['127.0.0.1:6379:6379'])
     expect(d.services.api.environment.REDIS_URL).toBe('redis://redis:6379')
     expect(d.services.redis.healthcheck.test.join(' ')).toContain('redis-cli ping')
   })

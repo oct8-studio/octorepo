@@ -6,7 +6,7 @@ export const redisPlugin: ServicePlugin = {
   label: 'Redis',
   compose: () => ({
     image: `redis:${IMAGES.redis}-alpine`,
-    ports: ['6379:6379'],
+    ports: ['127.0.0.1:6379:6379'],
     volumes: ['redis-data:/data'],
     healthcheck: {
       test: ['CMD', 'redis-cli', 'ping'],
