@@ -239,8 +239,10 @@ const ormKnown: Rule = {
 /** Every ORM targets PostgreSQL, so an ORM without the postgres service gets it added. */
 const ormNeedsPostgres: Rule = {
   id: 'orm-needs-postgres',
-  check: (stack) => {
-    if (stack.orm === undefined || stack.services.includes('postgres')) return { issues: [] }
+  check: (stack, reg) => {
+    // An unknown ORM is orm-known's error; don't also rewrite services for it.
+    if (stack.orm === undefined || !reg.orm(stack.orm) || stack.services.includes('postgres'))
+      return { issues: [] }
     return {
       issues: [
         {
@@ -252,6 +254,22 @@ const ormNeedsPostgres: Rule = {
       stack: { ...stack, services: [...stack.services, 'postgres'] },
     }
   },
+}
+
+const ormWithoutBackend: Rule = {
+  id: 'orm-without-backend',
+  check: (stack) => ({
+    issues:
+      stack.orm !== undefined && !stack.apps.some((a) => a.kind === 'backend')
+        ? [
+            {
+              rule: 'orm-without-backend',
+              level: 'warning',
+              message: `ORM "${stack.orm}" is set but no backend uses packages/db`,
+            },
+          ]
+        : [],
+  }),
 }
 
 const assignPorts: Rule = {
@@ -294,6 +312,7 @@ export const rules: Rule[] = [
   frontendWithoutBackend,
   ormKnown,
   ormNeedsPostgres,
+  ormWithoutBackend,
   serviceKnown,
   assignPorts,
 ]

@@ -193,8 +193,18 @@ describe('validateStack', () => {
     expect(validateStack(stack([be('api')]), reg).stack.services).toEqual([])
   })
 
-  it('flags an ORM the registry does not know', () => {
+  it('warns when an ORM is set without any backend', () => {
+    const r = validateStack(stack([fe('web')], { orm: 'drizzle' }), reg)
+    expect(r.errors).toEqual([])
+    expect(r.warnings.filter((w) => w.rule === 'orm-without-backend')).toHaveLength(1)
+    const ok = validateStack(stack([be('api')], { orm: 'drizzle' }), reg)
+    expect(ok.warnings.some((w) => w.rule === 'orm-without-backend')).toBe(false)
+  })
+
+  it('flags an ORM the registry does not know, without adding postgres for it', () => {
     const r = validateStack(stack([be('api')], { orm: 'prisma' }), reg)
+    expect(r.stack.services).toEqual([])
+    expect(r.fixes.some((f) => f.rule === 'orm-needs-postgres')).toBe(false)
     expect(r.errors).toEqual([
       expect.objectContaining({
         rule: 'orm-known',

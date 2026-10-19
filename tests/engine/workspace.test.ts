@@ -105,7 +105,15 @@ describe('workspaceFiles', () => {
     const orm = { ...manifest, orm: 'drizzle' as const }
     const agents = workspaceFiles({ ...ctx, stack: orm }, orm)['AGENTS.md'] as string
     expect(agents).toContain('packages/db')
-    expect(agents).toContain('db:*')
     expect(agents).toContain('packages/db/src/generated/**')
+    expect(agents).toContain('`db:migration`: create a migration')
+    expect(agents).toContain('`db:migrate`: apply committed migrations')
+    expect(agents).toContain('pnpm --filter @acme/db <script>')
+    expect(agents).toContain('drizzle-kit generate')
+    expect(agents).not.toContain('migrate, studio')
+    const prisma = { ...manifest, orm: 'prisma' as const }
+    expect(workspaceFiles({ ...ctx, stack: prisma }, prisma)['AGENTS.md']).toContain(
+      'regenerate the Prisma Client',
+    )
   })
 })

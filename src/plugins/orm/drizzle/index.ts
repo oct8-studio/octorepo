@@ -10,13 +10,17 @@ function generate(ctx: ProjectContext): FileTree {
     scripts: {
       build: 'tsdown',
       dev: 'tsdown --watch --no-clean',
-      // Writes a new SQL migration under drizzle/ from changes to src/schema.ts; commit it.
+      // Both write a new SQL migration under drizzle/ from changes to src/schema.ts; commit it.
+      // db:migration is the cross-ORM name, db:generate drizzle-kit's own.
+      'db:migration': 'drizzle-kit generate',
       'db:generate': 'drizzle-kit generate',
       'db:migrate': 'drizzle-kit migrate',
     },
     dependencies: { 'drizzle-orm': v['drizzle-orm'], pg: v.pg },
     devDependencies: { '@types/pg': v['@types/pg'], 'drizzle-kit': v['drizzle-kit'] },
     configFiles: ['drizzle.config.ts'],
+    // drizzle-kit rewrites its snapshots on every db:migration; never reformat or lint them.
+    lintIgnore: ['drizzle/meta'],
   })
   for (const [path, content] of Object.entries(readPluginFiles(new URL('./', import.meta.url), {})))
     tree[`${DB_DIR}/${path}`] = content

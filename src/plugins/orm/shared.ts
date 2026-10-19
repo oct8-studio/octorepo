@@ -1,4 +1,3 @@
-import { PNPM_BUILD_STAGE } from '../../engine/docker'
 import { json } from '../../engine/tree'
 import { postgresPlugin } from '../service/postgres'
 import type { FileTree, ProjectContext } from '../types'
@@ -15,12 +14,21 @@ const SEED = 'pnpm run db:seed'
 /**
  * One-shot image for the compose `migrate` service: the full workspace install (the ORM CLIs are
  * dev dependencies), then migrations and the idempotent seed. `apk` adds Alpine packages first.
+ * Runs as `node`: corepack's pnpm lives in a shared COREPACK_HOME and /repo belongs to node, so
+ * install, build, migrate and seed never need root.
  */
 export function dbDockerfile(migrateCommand: string[], apk: string[] = []): string {
-  const stage = apk.length
-    ? PNPM_BUILD_STAGE.replace('\n', `\nRUN apk add --no-cache ${apk.join(' ')}\n`)
-    : PNPM_BUILD_STAGE
-  return `${stage}WORKDIR /repo/packages/db
+  const pkgs = apk.length ? `RUN apk add --no-cache ${apk.join(' ')}\n` : ''
+  return `FROM node:24-alpine
+${pkgs}ENV COREPACK_HOME=/opt/corepack
+RUN corepack enable && mkdir -p /opt/corepack /repo && chown node:node /opt/corepack /repo
+USER node
+WORKDIR /repo
+COPY --chown=node:node package.json ./
+RUN pnpm --version
+COPY --chown=node:node . .
+RUN pnpm install --frozen-lockfile
+WORKDIR /repo/packages/db
 RUN pnpm run build
 CMD ["sh", "-c", ${JSON.stringify(`${migrateCommand.join(' ')} && ${SEED}`)}]
 `
@@ -165,7 +173,9 @@ export async function dbHealth(): Promise<{ status: 200 | 503; body: DbHealth }>
     db ??= createDb(url)
     return { status: 200, body: { ok: true, greetings: await countGreetings(db) } }
   } catch (e) {
-    return { status: 503, body: { ok: false, error: (e as Error).message } }
+    // Details stay in the server log; the response does not leak connection strings or hosts.
+    console.error('GET /db/health failed:', e)
+    return { status: 503, body: { ok: false, error: 'database unavailable' } }
   }
 }
 `,

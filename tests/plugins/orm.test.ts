@@ -35,7 +35,7 @@ describe.each([
     expect(pkg.exports['.'].require.default).toBe('./dist/index.cjs')
     expect(pkg.exports['.'].import.default).toBe('./dist/index.js')
     expect(tree['packages/db/tsdown.config.ts']).toContain("format: ['esm', 'cjs']")
-    for (const s of ['build', 'dev', 'db:generate', 'db:migrate', 'db:seed']) {
+    for (const s of ['build', 'dev', 'db:generate', 'db:migration', 'db:migrate', 'db:seed']) {
       expect(pkg.scripts[s], s).toBeDefined()
     }
     expect(pkg.dependencies.pg).toBe(VERSIONS.pg)
@@ -58,7 +58,12 @@ describe.each([
   })
   it('has a migrate image that migrates then seeds', () => {
     const df = tree['packages/db/Dockerfile'] as string
-    expect(df).toMatch(/^FROM node:24-alpine AS build/)
+    expect(df).toMatch(/^FROM node:24-alpine\n/)
+    expect(df).toContain('USER node\n')
+    expect(df).toContain('ENV COREPACK_HOME=/opt/corepack')
+    expect(df).toContain('COPY --chown=node:node . .')
+    // Every RUN after USER node runs unprivileged.
+    expect(df.indexOf('USER node')).toBeLessThan(df.indexOf('RUN pnpm install'))
     expect(df).toContain('RUN pnpm install --frozen-lockfile')
     expect(df).toContain('WORKDIR /repo/packages/db')
     expect(df).toContain('CMD ["sh", "-c", "pnpm run db:migrate && pnpm run db:seed"]')
@@ -79,6 +84,9 @@ describe('drizzle plugin', () => {
     expect(tree['packages/db/drizzle/meta/0000_snapshot.json']).toBeDefined()
     const pkg = JSON.parse(tree['packages/db/package.json'] as string)
     expect(pkg.scripts['db:migrate']).toBe('drizzle-kit migrate')
+    expect(pkg.scripts['db:migration']).toBe('drizzle-kit generate')
+    const biome = JSON.parse(tree['packages/db/biome.json'] as string)
+    expect(biome.files.includes).toContain('!drizzle/meta')
     expect(pkg.dependencies['drizzle-orm']).toBe(VERSIONS['drizzle-orm'])
     expect(pkg.devDependencies['drizzle-kit']).toBe(VERSIONS['drizzle-kit'])
   })
@@ -133,6 +141,8 @@ describe('backendDb', () => {
     expect(db?.dependencies).toEqual({ '@acme/db': 'workspace:*' })
     expect(db?.file).toContain("from '@acme/db'")
     expect(db?.file).toContain('greetings: await countGreetings(db)')
-    expect(db?.file).toContain('status: 503')
+    expect(db?.file).toContain("error: 'database unavailable'")
+    expect(db?.file).toContain("console.error('GET /db/health failed:', e)")
+    expect(db?.file).not.toContain('.message')
   })
 })

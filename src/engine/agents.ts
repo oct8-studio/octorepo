@@ -32,7 +32,14 @@ export function agentsSection(stack: StackConfig): string {
       ]
     : []
   const dbScripts = orm
-    ? '\nDatabase: run the `db:*` scripts (generate, migrate, studio) from `packages/db`; compose runs migrations through a one-shot `migrate` service.\n'
+    ? `
+Database (\`pnpm --filter ${scope}/db <script>\`; compose runs migrate + seed in a one-shot \`migrate\` service):
+
+- \`db:migration\`: create a migration from schema changes (commit it)
+- \`db:migrate\`: apply committed migrations
+- \`db:seed\`: insert the sample greeting (idempotent)
+- \`db:generate\`: ${orm === 'prisma' ? 'regenerate the Prisma Client (the build also runs it)' : 'drizzle-kit generate (same as db:migration)'}
+`
     : ''
   return `${AGENTS_BEGIN}
 ## Repo layout (managed by octorepo)
