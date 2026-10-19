@@ -32,6 +32,7 @@ describe('fastifyPlugin', () => {
   })
   it('listens dual-stack on :: like the other backends', () => {
     expect(tree['apps/api/src/main.ts']).toContain("await app.listen({ port, host: '::' })")
+    expect(tree['apps/api/src/main.ts']).toContain("await app.listen({ port, host: '0.0.0.0' })")
   })
   it('generates app sources with substitutions', () => {
     expect(tree['apps/api/src/app.ts']).toContain('Hello from api')
