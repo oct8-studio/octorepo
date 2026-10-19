@@ -63,7 +63,8 @@ jobs:
           node-version: 24
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
-      - run: pnpm tsx scripts/e2e.ts ${{ matrix.combo }}
+      # --dev: `pnpm dev` on the fresh repo must serve every app (turbo and nx combos).
+      - run: pnpm tsx scripts/e2e.ts ${{ matrix.combo }} --dev
 
   fixture:
     needs: unit
@@ -76,4 +77,4 @@ jobs:
           node-version: 24
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
-      - run: pnpm tsx scripts/e2e.ts --fixture fixtures/full.json --compose
+      - run: pnpm tsx scripts/e2e.ts --fixture fixtures/full.json --dev --compose
