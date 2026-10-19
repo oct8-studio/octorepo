@@ -1,6 +1,6 @@
 # Contributing to octorepo
 
-Thanks for helping. Requirements: Node >= 22 and pnpm.
+Thanks for helping. Requirements: Node >= 22.12 and pnpm.
 
 ```bash
 pnpm install
