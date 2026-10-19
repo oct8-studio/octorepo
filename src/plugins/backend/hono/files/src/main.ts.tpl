@@ -1,6 +1,6 @@
 import { serve } from '@hono/node-server'
 import { createApp } from './app.js'
-import { loadEnv } from './env.js'
+import { loadEnv } from './generated/env.js'
 
 const { PORT: port } = loadEnv()
 

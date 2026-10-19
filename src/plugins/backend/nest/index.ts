@@ -39,7 +39,7 @@ function generate(ctx: AppContext): FileTree {
   const tree: FileTree = {}
   for (const [path, content] of Object.entries(files)) tree[`${dir}/${path}`] = content
   tree[`${dir}/src/generated/cors.ts`] = cors.file
-  tree[`${dir}/src/env.ts`] = env.file
+  tree[`${dir}/src/generated/env.ts`] = env.file
   if (db) {
     tree[`${dir}/src/db.ts`] = db.file
     tree[`${dir}/src/db.controller.ts`] = DB_CONTROLLER

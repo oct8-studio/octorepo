@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { createApp } from './app'
-import { loadEnv } from './env'
+import { loadEnv } from './generated/env'
 
 async function bootstrap(): Promise<void> {
   const { PORT: port } = loadEnv()

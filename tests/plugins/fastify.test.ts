@@ -52,8 +52,8 @@ describe('fastifyPlugin', () => {
     expect(JSON.stringify(hyphen)).not.toMatch(/\{\{\w+\}\}/)
   })
   it('loads .env for local dev without overriding the environment', () => {
-    expect(tree['apps/api/src/env.ts']).toContain('process.loadEnvFile()')
-    expect(tree['apps/api/src/env.ts']).toContain("code !== 'ENOENT'")
+    expect(tree['apps/api/src/generated/env.ts']).toContain('process.loadEnvFile()')
+    expect(tree['apps/api/src/generated/env.ts']).toContain("code !== 'ENOENT'")
   })
   it('defaults CORS to the frontends that use it', () => {
     expect(tree['apps/api/src/app.ts']).toContain(

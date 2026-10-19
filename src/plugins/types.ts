@@ -17,6 +17,8 @@ export interface AppContext extends ProjectContext {
   app: ResolvedApp
   /** Resolved `uses`, frontends only. */
   backends: ResolvedApp[]
+  /** Backends: env var names the stack's services (and ORM) require at startup. */
+  serviceEnv?: string[]
 }
 
 export interface MonorepoPlugin {

@@ -55,6 +55,9 @@ export function generateProject(stack: StackConfig, reg: Registry): FileTree {
   }
 
   const localServiceEnv = serviceEnv(ctx, reg, 'localhost')
+  const requiredEnv = [
+    ...new Set([...Object.keys(localServiceEnv), ...(stack.orm ? ['DATABASE_URL'] : [])]),
+  ]
   for (const app of apps) {
     const plugin = reg.framework(app.framework, app.kind)
     if (!plugin) throw new CliError(`Unknown ${app.kind} framework "${app.framework}"`)
@@ -62,6 +65,7 @@ export function generateProject(stack: StackConfig, reg: Registry): FileTree {
       ...ctx,
       app,
       backends: apps.filter((b) => b.kind === 'backend' && app.uses?.includes(b.name)),
+      serviceEnv: requiredEnv,
     }
     const tree = plugin.generate(appCtx)
     tree[`apps/${app.name}/Dockerfile`] = plugin.dockerfile(appCtx)
