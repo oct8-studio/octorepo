@@ -21,6 +21,7 @@ import { parseStackConfig, type StackConfig } from '../src/model/stack'
 import { defaultRegistry } from '../src/plugins/registry'
 import { validateStack } from '../src/rules'
 import { findCombo } from './combos'
+import { runsAsRoot } from './non-root'
 
 interface StepResult {
   step: string
@@ -243,7 +244,7 @@ const SPA_ROOT_COMPONENT: Record<string, string> = {
 
 /** The image's runtime user must not be root (Dockerfiles set USER or use a non-root base image). */
 async function assertNonRoot(tag: string, root: string): Promise<void> {
-  const user = await new Promise<string>((done, fail) => {
+  const { code, user } = await new Promise<{ code: number | null; user: string }>((done, fail) => {
     const p = spawn('docker', ['image', 'inspect', '-f', '{{.Config.User}}', tag], {
       cwd: root,
       stdio: ['ignore', 'pipe', 'inherit'],
@@ -253,9 +254,10 @@ async function assertNonRoot(tag: string, root: string): Promise<void> {
       out += d
     })
     p.on('error', fail)
-    p.on('close', () => done(out.trim()))
+    p.on('close', (c) => done({ code: c, user: out.trim() }))
   })
-  if (user === '' || user === 'root' || user === '0' || user.startsWith('0:')) {
+  if (code !== 0) throw new Error(`docker image inspect ${tag} failed (exit ${code})`)
+  if (runsAsRoot(user)) {
     throw new Error(`${tag} runs as root (User="${user}")`)
   }
 }
