@@ -35,7 +35,9 @@ export const nxPlugin: MonorepoPlugin & { ciBuildCommand: string } = {
           typecheck: { dependsOn: ['build'], cache: true },
           test: { dependsOn: ['build'], cache: true },
           lint: { cache: true },
-          dev: { cache: false },
+          // Apps import built workspace packages (types, clients, ui), so build those first.
+          // `continuous` keeps long-running dev tasks from filling run-many's parallel slots.
+          dev: { dependsOn: ['^build'], cache: false, continuous: true },
         },
       }),
     }

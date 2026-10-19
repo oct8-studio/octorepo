@@ -27,7 +27,8 @@ export const turboPlugin: MonorepoPlugin & { ciBuildCommand: string } = {
           typecheck: { dependsOn: ['build'] },
           test: { dependsOn: ['build'] },
           lint: {},
-          dev: { cache: false, persistent: true },
+          // Apps import built workspace packages (types, clients, ui), so build those first.
+          dev: { dependsOn: ['^build'], cache: false, persistent: true },
         },
       }),
     }

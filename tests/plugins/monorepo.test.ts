@@ -20,7 +20,7 @@ describe('turbo plugin', () => {
     ])
     expect(turbo.tasks.typecheck.dependsOn).toEqual(['build'])
     expect(turbo.tasks.test.dependsOn).toEqual(['build'])
-    expect(turbo.tasks.dev).toEqual({ cache: false, persistent: true })
+    expect(turbo.tasks.dev).toEqual({ dependsOn: ['^build'], cache: false, persistent: true })
     expect(turbo.tasks.lint).toBeDefined()
   })
   it('writes root scripts and devDependency', () => {
@@ -48,7 +48,11 @@ describe('nx plugin', () => {
     expect(nx.targetDefaults.build.cache).toBe(true)
     expect(nx.targetDefaults.typecheck.dependsOn).toEqual(['build'])
     expect(nx.targetDefaults.test.dependsOn).toEqual(['build'])
-    expect(nx.targetDefaults.dev.cache).toBe(false)
+    expect(nx.targetDefaults.dev).toEqual({
+      dependsOn: ['^build'],
+      cache: false,
+      continuous: true,
+    })
     expect(nx.plugins).toBeUndefined()
   })
   it('writes root scripts, no project.json, no @nx/', () => {
