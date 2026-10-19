@@ -10,5 +10,6 @@ try {
 const port = Number(process.env.PORT ?? {{port}})
 
 const app = await createApp()
-await app.listen({ port, host: '0.0.0.0' })
+// '::' is dual-stack (IPv6 and IPv4), matching what the other backends get from Node's default.
+await app.listen({ port, host: '::' })
 console.log(`{{name}} listening on http://localhost:${port}`)

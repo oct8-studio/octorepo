@@ -30,6 +30,9 @@ describe('fastifyPlugin', () => {
     expect(pkg.dependencies['@fastify/cors']).toBe(VERSIONS['@fastify/cors'])
     expect(pkg.scripts.build).toBe('tsx scripts/write-openapi.ts && tsc -p tsconfig.build.json')
   })
+  it('listens dual-stack on :: like the other backends', () => {
+    expect(tree['apps/api/src/main.ts']).toContain("await app.listen({ port, host: '::' })")
+  })
   it('generates app sources with substitutions', () => {
     expect(tree['apps/api/src/app.ts']).toContain('Hello from api')
     expect(tree['apps/api/src/app.ts']).toContain("from '@acme/types'")
