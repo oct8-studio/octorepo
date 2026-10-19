@@ -5,7 +5,9 @@ import { Command } from 'commander'
 import { readManifest, runAddApp } from './commands/add-app'
 import { runCreate } from './commands/create'
 import { parseAppFlag, parseUses } from './commands/flags'
+import { formatOptions, listOptions } from './commands/options'
 import { answer, appNameValidator } from './commands/prompts'
+import { runMcpServer } from './mcp/server'
 import { CLI_NAME, CLI_VERSION } from './meta'
 import { CliError, formatError } from './model/errors'
 import { type AppKind, type AppSpec, parseStackConfig, type StackConfig } from './model/stack'
@@ -177,6 +179,22 @@ program
   .option('--no-install', 'skip pnpm install')
   .option('--json', 'print machine-readable result only')
   .action(addApp)
+
+program
+  .command('options')
+  .description('List the tools, frameworks and services a stack can use')
+  .option('--json', 'print machine-readable result only')
+  .action((flags: { json?: boolean }) => {
+    const options = listOptions(defaultRegistry())
+    process.stdout.write(
+      flags.json ? `${JSON.stringify(options, null, 2)}\n` : `${formatOptions(options)}\n`,
+    )
+  })
+
+program
+  .command('mcp')
+  .description('Run the MCP server on stdio (for AI agents)')
+  .action(() => runMcpServer(defaultRegistry()))
 
 try {
   await program.parseAsync()

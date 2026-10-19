@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "octorepo": {
+      "command": "npx",
+      "args": ["-y", "@oct8/octorepo", "mcp"]
+    }
+  }
+}

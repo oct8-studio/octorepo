@@ -98,6 +98,46 @@ npx @oct8/octorepo add app frontend admin react-vite --uses api,billing
 
 `add` regenerates only tool-owned files (root `package.json` merge, workspace file, `turbo.json`/`nx.json`, compose, clients, `src/generated/**`); your own code is never rewritten.
 
+## Use with AI agents
+
+`npx @oct8/octorepo mcp` runs an [MCP](https://modelcontextprotocol.io) server on stdio, so coding agents can scaffold and extend repos with the same engine as the CLI. Tools:
+
+| Tool | Input | Returns |
+|---|---|---|
+| `list_options` | none | tools, frameworks, services, ORMs and presets (same as `octorepo options --json`) |
+| `validate_stack` | a stack config (the `--config` JSON) | `{ stack, errors, warnings, fixes }`; writes nothing |
+| `create` | `{ dir, stack, install?, git? }` | the `create --json` result |
+| `add_app` | `{ cwd, app, install? }` | the `add app --json` result |
+| `read_manifest` | `{ cwd }` | the repo's `.octorepo.json` |
+
+Relative `dir` and `cwd` resolve against the directory the server runs in, and `create`/`add_app` refuse exactly where the CLI does (non-empty directory, invalid stack, existing app).
+
+**Claude Code**: add the server to the current project,
+
+```bash
+claude mcp add octorepo -- npx -y @oct8/octorepo mcp
+```
+
+or load the plugin in [`integrations/claude-code`](integrations/claude-code), which bundles the server with an `octorepo` skill and a `/octorepo:new` command:
+
+```bash
+claude --plugin-dir ./integrations/claude-code
+```
+
+**Cursor**: add to `.cursor/mcp.json` (or `~/.cursor/mcp.json` for every project):
+
+```json
+{
+  "mcpServers": {
+    "octorepo": { "command": "npx", "args": ["-y", "@oct8/octorepo", "mcp"] }
+  }
+}
+```
+
+**Any other MCP client**: run `npx -y @oct8/octorepo mcp` as a stdio server; the `mcpServers` entry above is the usual shape.
+
+Without MCP, `npx @oct8/octorepo options --json` lists the options and `create`/`add app` take `--json` for machine-readable results.
+
 ## Roadmap
 
 Fastify, Hono, TanStack Start, Vue, Nuxt, SvelteKit, tRPC, Prisma/Drizzle, microservices, GraphQL, gRPC.
