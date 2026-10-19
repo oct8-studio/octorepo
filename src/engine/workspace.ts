@@ -4,9 +4,21 @@ import type { Manifest } from '../model/stack'
 import type { ProjectContext } from '../plugins/types'
 import { type FileTree, json } from './tree'
 
+// Build output and generated dirs of every supported framework, so apps need no own .gitignore.
 const GITIGNORE = `node_modules
 dist
+build
 .next
+.nuxt
+.output
+.nitro
+.data
+.svelte-kit
+.astro
+.react-router
+.tanstack
+.solid
+routeTree.gen.ts
 .turbo
 .nx
 .env
@@ -136,20 +148,54 @@ export function workspaceFiles(
     }),
     '.gitignore': GITIGNORE,
     '.nvmrc': '24\n',
-    '.dockerignore':
-      'node_modules\n**/node_modules\n**/dist\n**/.next\n.git\n.turbo\n.nx\n.env\n**/.env\n**/.env.local\n',
+    '.dockerignore': `${[
+      'node_modules',
+      '**/node_modules',
+      '**/dist',
+      '**/.next',
+      '**/.output',
+      '**/.nuxt',
+      '**/.nitro',
+      '**/.svelte-kit',
+      '**/.astro',
+      '**/.react-router',
+      '**/.tanstack',
+      '.git',
+      '**/.turbo',
+      '.nx',
+      '.env',
+      '**/.env',
+      '**/.env.local',
+    ].join('\n')}\n`,
     'biome.json': json({
       $schema: `https://biomejs.dev/schemas/${v['@biomejs/biome']}/schema.json`,
       files: {
+        // Build output and framework-generated dirs/files are never linted (nor rewritten by --write).
         includes: [
           '**',
           '!**/dist',
+          '!**/build',
           '!**/.next',
+          '!**/.nuxt',
+          '!**/.output',
+          '!**/.nitro',
+          '!**/.data',
+          '!**/.svelte-kit',
+          '!**/.astro',
+          '!**/.react-router',
+          '!**/.tanstack',
+          '!**/.solid',
+          '!**/routeTree.gen.ts',
+          '!**/.turbo',
+          '!**/.nx',
           '!**/node_modules',
           '!**/openapi.json',
           '!**/*.d.ts',
         ],
       },
+      // Lint .vue/.svelte/.astro templates too; otherwise imports used only in a template look
+      // unused and the post-install `biome check --write` could drop them.
+      html: { experimentalFullSupportEnabled: true },
       formatter: { indentStyle: 'space', indentWidth: 2, lineWidth: 100 },
       javascript: { formatter: { quoteStyle: 'single', semicolons: 'asNeeded' } },
       linter: { enabled: true },

@@ -82,10 +82,9 @@ describe('sveltekitPlugin', () => {
     expect(pkg.scripts.typecheck).toContain('svelte-kit sync')
   })
   it('keeps .svelte-kit and build/ out of git and biome', () => {
-    expect(tree['apps/admin/.gitignore']).toContain('/.svelte-kit')
-    const biome = JSON.parse(tree['apps/admin/biome.json'] as string)
-    expect(biome.files.includes).toEqual(['**', '!.svelte-kit', '!build'])
-    expect(biome.html.experimentalFullSupportEnabled).toBe(true)
+    // Covered by the root .gitignore/biome.json, which also enables full .svelte support.
+    expect(tree['apps/admin/.gitignore']).toBeUndefined()
+    expect(tree['apps/admin/biome.json']).toBeUndefined()
   })
   it('generates a helper test and no unresolved placeholders', () => {
     expect(tree['apps/admin/src/lib/cards.test.ts']).toBeDefined()

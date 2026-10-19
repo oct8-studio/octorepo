@@ -65,6 +65,27 @@ describe('workspaceFiles', () => {
     expect(tree['.github/workflows/ci.yml']).toContain('pnpm install')
     expect(tree['README.md']).toContain('4000')
     expect(tree['README.md']).toContain('gitignored copy of\n`.env.example`')
-    expect(JSON.parse(tree['biome.json'] as string).files.includes).toContain('!**/openapi.json')
+    const biome = JSON.parse(tree['biome.json'] as string)
+    expect(biome.files.includes).toContain('!**/openapi.json')
+    // Every framework's build/generated output is ignored at the root, so apps need no nested config.
+    for (const dir of [
+      '.output',
+      '.nuxt',
+      '.svelte-kit',
+      '.astro',
+      '.react-router',
+      '.tanstack',
+      '.nitro',
+      '.turbo',
+      'build',
+    ]) {
+      expect(biome.files.includes).toContain(`!**/${dir}`)
+      expect(tree['.gitignore']?.split('\n')).toContain(dir)
+    }
+    expect(biome.files.includes).toContain('!**/routeTree.gen.ts')
+    expect(biome.html).toEqual({ experimentalFullSupportEnabled: true })
+    for (const dir of ['.output', '.nuxt', '.svelte-kit', '.astro', '.react-router']) {
+      expect(tree['.dockerignore']?.split('\n')).toContain(`**/${dir}`)
+    }
   })
 })

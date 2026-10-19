@@ -69,19 +69,6 @@ export function uiSveltePackageFiles(ctx: ProjectContext): FileTree {
   "include": ["src"]
 }
 `,
-    // Without full support Biome lints only the <script> block and flags template-only usages.
-    // A nested config's includes replace the root's, so build output is excluded here too
-    // (svelte-package also leaves its staging dir in .svelte-kit/).
-    [`${dir}/biome.json`]: `{
-  "root": false,
-  "extends": "//",
-  "files": {
-    "includes": ["**", "!dist", "!.svelte-kit"]
-  },
-  "html": { "experimentalFullSupportEnabled": true }
-}
-`,
-    [`${dir}/.gitignore`]: '/.svelte-kit\n',
     [`${dir}/src/index.ts`]: "export { type CardProps, default as Card } from './Card.svelte'\n",
     [`${dir}/src/Card.svelte`]: card,
   }

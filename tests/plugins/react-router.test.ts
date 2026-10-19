@@ -41,12 +41,9 @@ describe('reactRouterPlugin', () => {
     expect(tree['apps/site/app/root.tsx']).toContain('<Scripts />')
     expect(tree['apps/site/vitest.config.ts']).not.toContain('reactRouter')
   })
-  it('keeps typegen output out of biome via a nested config', () => {
-    const b = JSON.parse(tree['apps/site/biome.json'] as string)
-    expect(b.root).toBe(false)
-    expect(b.extends).toBe('//')
-    expect(b.files.includes).toEqual(expect.arrayContaining(['!**/dist', '!.react-router']))
-    expect(b.$schema).toContain(VERSIONS['@biomejs/biome'])
+  it('relies on the root biome.json and .gitignore for typegen output', () => {
+    expect(tree['apps/site/biome.json']).toBeUndefined()
+    expect(tree['apps/site/.gitignore']).toBeUndefined()
   })
   it('generates server-side clients from <UPPER>_URL env', () => {
     const g = tree['apps/site/src/generated/api.ts'] as string

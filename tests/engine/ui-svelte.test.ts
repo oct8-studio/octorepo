@@ -31,10 +31,9 @@ describe('uiSveltePackageFiles', () => {
       "default as Card } from './Card.svelte'",
     )
   })
-  it('keeps dist and the svelte-package staging dir out of biome', () => {
-    const biome = JSON.parse(tree['packages/ui-svelte/biome.json'] as string)
-    expect(biome).toMatchObject({ root: false, extends: '//' })
-    expect(biome.files.includes).toEqual(['**', '!dist', '!.svelte-kit'])
+  it('relies on the root biome.json for dist and the svelte-package staging dir', () => {
+    expect(tree['packages/ui-svelte/biome.json']).toBeUndefined()
+    expect(tree['packages/ui-svelte/.gitignore']).toBeUndefined()
   })
   it('only writes under packages/ui-svelte', () => {
     expect(Object.keys(tree).every((p) => p.startsWith('packages/ui-svelte/'))).toBe(true)

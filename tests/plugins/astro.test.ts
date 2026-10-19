@@ -38,13 +38,8 @@ describe('astroPlugin', () => {
     expect(c).toContain('port: 3000')
     expect(c).toContain('process.loadEnvFile()')
   })
-  it('enables Biome full .astro support so template-only usages are not flagged unused', () => {
-    const b = JSON.parse(tree['apps/site/biome.json'] as string)
-    expect(b).toEqual({
-      root: false,
-      extends: '//',
-      html: { experimentalFullSupportEnabled: true },
-    })
+  it('relies on the root biome.json (full .astro support, .astro ignored) — no nested config', () => {
+    expect(tree['apps/site/biome.json']).toBeUndefined()
   })
   it('generates server-side clients from runtime <UPPER>_URL env', () => {
     const g = tree['apps/site/src/generated/api.ts'] as string

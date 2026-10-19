@@ -91,9 +91,6 @@ function generate(ctx: AppContext): FileTree {
     name: app.name,
     scope,
     port: String(app.port),
-    // Nested biome.json: `files.includes` replaces the root list, so it repeats the root's
-    // excludes and adds the `react-router typegen` output.
-    biomeVersion: v['@biomejs/biome'] as string,
   })
   const tree: FileTree = {}
   for (const [path, content] of Object.entries(files)) tree[`${dir}/${path}`] = content

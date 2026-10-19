@@ -38,8 +38,9 @@ describe('solidStartPlugin', () => {
     expect(tree['apps/site/vitest.config.ts']).toContain("from 'vitest/config'")
     expect(tree['apps/site/tsconfig.json']).toContain('"jsxImportSource": "solid-js"')
     expect(tree['apps/site/tsconfig.json']).toContain('@acme/config/tsconfig.base.json')
-    expect(tree['apps/site/biome.json']).toContain('!.output')
-    expect(tree['apps/site/.gitignore']).toContain('.output')
+    // Build output is covered by the root .gitignore/biome.json.
+    expect(tree['apps/site/biome.json']).toBeUndefined()
+    expect(tree['apps/site/.gitignore']).toBeUndefined()
   })
   it('generates server-side clients from <UPPER>_URL env', () => {
     const g = tree['apps/site/src/generated/api.ts'] as string

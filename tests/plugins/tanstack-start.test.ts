@@ -75,11 +75,9 @@ describe('tanstackStartPlugin', () => {
     expect(pkg.scripts.start).toBe('node .output/server/index.mjs')
   })
   it('keeps build output and the generated route tree out of biome and git', () => {
-    const biome = JSON.parse(tree['apps/site/biome.json'] as string)
-    expect(biome.root).toBe(false)
-    expect(biome.files.includes).toContain('!.output')
-    expect(biome.files.includes).toContain('!src/routeTree.gen.ts')
-    expect(tree['apps/site/.gitignore']).toContain('src/routeTree.gen.ts')
+    // Covered by the root .gitignore/biome.json (.output, .tanstack, .nitro, routeTree.gen.ts).
+    expect(tree['apps/site/biome.json']).toBeUndefined()
+    expect(tree['apps/site/.gitignore']).toBeUndefined()
   })
   it('generates a helper test and no unresolved placeholders', () => {
     expect(tree['apps/site/src/lib/cards.test.ts']).toBeDefined()

@@ -68,11 +68,9 @@ describe('nuxtPlugin', () => {
       expect(pkg.scripts[s]).toBeTruthy()
   })
   it('keeps Nuxt build output out of git and biome', () => {
-    expect(tree['apps/site/.gitignore']).toContain('.output')
-    const biome = JSON.parse(tree['apps/site/biome.json'] as string)
-    expect(biome.files.includes).toContain('!.nuxt')
-    // Template-aware linting, so imports used only in <template> aren't removed as unused.
-    expect(biome.html.experimentalFullSupportEnabled).toBe(true)
+    // The root .gitignore/biome.json cover .nuxt and .output (and enable template-aware linting).
+    expect(tree['apps/site/.gitignore']).toBeUndefined()
+    expect(tree['apps/site/biome.json']).toBeUndefined()
     expect(tree['apps/site/nuxt.config.ts']).toContain('defineNuxtConfig')
   })
   it('generates a helper test and no unresolved placeholders', () => {
