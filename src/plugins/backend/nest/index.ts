@@ -1,21 +1,46 @@
 import { backendCorsDefaults } from '../../../engine/cors'
 import { nodeServiceDockerfile } from '../../../engine/docker'
 import { json, readPluginFiles } from '../../../engine/tree'
+import { backendDb } from '../../orm/shared'
 import type { AppContext, FileTree, FrameworkPlugin } from '../../types'
+
+/** `GET /db/health` (stacks with an ORM). Kept out of openapi.json like the other backends'. */
+const DB_CONTROLLER = `import { Controller, Get, ServiceUnavailableException } from '@nestjs/common'
+import { ApiExcludeController } from '@nestjs/swagger'
+import { type DbHealth, dbHealth } from './db'
+
+@ApiExcludeController()
+@Controller('db')
+export class DbController {
+  @Get('health')
+  async health(): Promise<DbHealth> {
+    const { status, body } = await dbHealth()
+    if (status !== 200) throw new ServiceUnavailableException(body)
+    return body
+  }
+}
+`
 
 function generate(ctx: AppContext): FileTree {
   const { app, scope, versions: v } = ctx
   const dir = `apps/${app.name}`
   const cors = backendCorsDefaults(ctx)
+  const db = backendDb(ctx)
   const files = readPluginFiles(new URL('./', import.meta.url), {
     name: app.name,
     scope,
     port: String(app.port),
     corsEnv: cors.envLine,
+    dbImport: db ? "import { DbController } from './db.controller'\n" : '',
+    controllers: db ? 'AppController, DbController' : 'AppController',
   })
   const tree: FileTree = {}
   for (const [path, content] of Object.entries(files)) tree[`${dir}/${path}`] = content
   tree[`${dir}/src/generated/cors.ts`] = cors.file
+  if (db) {
+    tree[`${dir}/src/db.ts`] = db.file
+    tree[`${dir}/src/db.controller.ts`] = DB_CONTROLLER
+  }
   // No "type": "module": the app compiles to CommonJS and consumes the types package via its `require` export.
   // `files` is required: `pnpm deploy --prod --legacy` otherwise honors .gitignore and drops dist/ (R12).
   tree[`${dir}/package.json`] = json({
@@ -33,6 +58,7 @@ function generate(ctx: AppContext): FileTree {
     },
     dependencies: {
       [`${scope}/types`]: 'workspace:*',
+      ...db?.dependencies,
       '@nestjs/common': v['@nestjs/common'],
       '@nestjs/core': v['@nestjs/core'],
       '@nestjs/platform-express': v['@nestjs/platform-express'],

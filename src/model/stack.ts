@@ -3,6 +3,7 @@ import { CliError, ManifestError } from './errors'
 
 export type MonorepoTool = 'turbo' | 'nx'
 export type AppKind = 'frontend' | 'backend'
+export type OrmId = 'drizzle' | 'prisma'
 
 export interface AppSpec {
   name: string
@@ -19,6 +20,8 @@ export interface StackConfig {
   packageManager: 'pnpm'
   apps: AppSpec[]
   services: string[]
+  /** One ORM per stack; generates the shared `packages/db` and needs the postgres service. */
+  orm?: OrmId
 }
 
 export interface Manifest extends StackConfig {
@@ -43,6 +46,7 @@ export const StackConfigSchema = z.object({
   packageManager: z.literal('pnpm').default('pnpm'),
   apps: z.array(AppSpecSchema),
   services: z.array(z.string()).default([]),
+  orm: z.enum(['drizzle', 'prisma']).optional(),
 })
 
 export const ManifestSchema = StackConfigSchema.extend({

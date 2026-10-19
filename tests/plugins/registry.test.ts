@@ -40,6 +40,9 @@ describe('Registry', () => {
   it('defaultRegistry registers every built-in plugin', () => {
     const r = defaultRegistry()
     expect([...r.monorepo.keys()].sort()).toEqual(['nx', 'turbo'])
+    expect([...r.orms.keys()]).toEqual(['drizzle', 'prisma'])
+    expect(r.orm('prisma')?.label).toBe('Prisma')
+    expect(r.orm('typeorm')).toBeUndefined()
     expect(
       r
         .frameworksOf('frontend')

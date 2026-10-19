@@ -230,4 +230,35 @@ describe('runAddApp', () => {
     expect(existsSync(join(root, 'apps/blog/src/routes/+page.svelte'))).toBe(true)
     expect(await snapshot()).toEqual(before)
   })
+
+  it('keeps the ORM: the new backend uses @demo/db and packages/db is left alone', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'octo-add-orm-'))
+    const created = await runCreate(
+      {
+        config: { ...config, orm: 'drizzle' },
+        cwd,
+        dir: 'repo',
+        install: false,
+        git: false,
+        force: false,
+        json: true,
+        yes: true,
+      },
+      reg,
+    )
+    const schema = join(created.root, 'packages/db/src/schema.ts')
+    await writeFile(schema, '// user schema\n')
+    const r = await runAddApp(
+      { cwd: created.root, json: true, app: { name: 'core', kind: 'backend', framework: 'koa' } },
+      reg,
+    )
+    expect(r.written.some((p) => p.startsWith('packages/db/'))).toBe(false)
+    expect(await read(created.root, 'packages/db/src/schema.ts')).toBe('// user schema\n')
+    const pkg = JSON.parse(await read(created.root, 'apps/core/package.json'))
+    expect(pkg.dependencies['@demo/db']).toBe('workspace:*')
+    expect(JSON.parse(await read(created.root, '.octorepo.json')).orm).toBe('drizzle')
+    expect(await read(created.root, 'docker-compose.yml')).toContain(
+      'service_completed_successfully',
+    )
+  })
 })

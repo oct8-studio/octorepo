@@ -42,4 +42,12 @@ describe('parseManifest', () => {
   it('rejects invalid manifest', () => {
     expect(() => parseManifest({ schemaVersion: 1 })).toThrow(ManifestError)
   })
+
+  it('accepts an optional orm and keeps manifests without one valid', () => {
+    expect(parseManifest({ ...valid, schemaVersion: 1, cliVersion: '1.0.0' }).orm).toBeUndefined()
+    expect(
+      parseManifest({ ...valid, orm: 'prisma', schemaVersion: 1, cliVersion: '1.0.0' }).orm,
+    ).toBe('prisma')
+    expect(() => parseStackConfig({ ...valid, orm: 'typeorm' })).toThrow(/orm/)
+  })
 })

@@ -1,7 +1,7 @@
 import cors from '@fastify/cors'
 import { HelloResponseSchema } from '{{scope}}/types'
 import Fastify, { type FastifyInstance } from 'fastify'
-import { DEFAULT_CORS_ORIGINS } from './generated/cors.js'
+{{dbImport}}import { DEFAULT_CORS_ORIGINS } from './generated/cors.js'
 
 export function parseOrigins(value: string | undefined): string[] {
   return (value ?? '')
@@ -22,5 +22,5 @@ export async function createApp(): Promise<FastifyInstance> {
 
   app.get('/hello', async () => HelloResponseSchema.parse({ message: 'Hello from {{name}}' }))
 
-  return app
+{{dbRoute}}  return app
 }

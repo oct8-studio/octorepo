@@ -1,3 +1,4 @@
+import { parse, stringify } from 'yaml'
 import { CLI_VERSION } from '../meta'
 import { CliError } from '../model/errors'
 import type { Manifest, StackConfig } from '../model/stack'
@@ -19,6 +20,13 @@ function resolve(app: StackConfig['apps'][number]): ResolvedApp {
 function withServiceEnv(base: string, extra: Record<string, string>): string {
   const lines = Object.entries(extra).map(([k, v]) => `${k}=${v}\n`)
   return `${base}${base && !base.endsWith('\n') ? '\n' : ''}${lines.join('')}`
+}
+
+/** The generated `pnpm-workspace.yaml` with extra dependencies allowed to run install scripts. */
+function allowBuilds(workspace: FileTree, deps: string[]): FileTree {
+  const doc = parse(workspace['pnpm-workspace.yaml'] ?? '') ?? {}
+  doc.allowBuilds = { ...doc.allowBuilds, ...Object.fromEntries(deps.map((d) => [d, true])) }
+  return { 'pnpm-workspace.yaml': stringify(doc) }
 }
 
 /** Generates the whole repository. Expects a stack already validated (ports and apiStyles assigned). */
@@ -62,6 +70,13 @@ export function generateProject(stack: StackConfig, reg: Registry): FileTree {
     // A real, gitignored .env with the same local-dev values, so `pnpm dev` works out of the box.
     if (tree[example] !== undefined) tree[`apps/${app.name}/.env`] = tree[example]
     trees.push(tree)
+  }
+
+  if (stack.orm) {
+    const orm = reg.orm(stack.orm)
+    if (!orm) throw new CliError(`Unknown ORM "${stack.orm}"`)
+    trees.push(orm.generate(ctx))
+    if (orm.allowBuilds?.length) trees.push(allowBuilds(mergeTrees(...trees), orm.allowBuilds))
   }
 
   trees.push(composeFiles(ctx, reg))

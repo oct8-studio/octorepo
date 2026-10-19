@@ -1,5 +1,5 @@
 import type { FileTree } from '../engine/tree'
-import type { AppKind, AppSpec, MonorepoTool, StackConfig } from '../model/stack'
+import type { AppKind, AppSpec, MonorepoTool, OrmId, StackConfig } from '../model/stack'
 import type { VERSIONS } from '../versions'
 
 export type { FileTree }
@@ -66,4 +66,15 @@ export interface ServicePlugin {
    * pass 'localhost' for local development outside compose.
    */
   env(ctx: ProjectContext, host?: string): Record<string, string>
+}
+
+export interface OrmPlugin {
+  id: OrmId
+  label: string
+  /** The shared `packages/db` package: schema, migrations, seed, `createDb(url)`. */
+  generate(ctx: ProjectContext): FileTree
+  /** Applies committed migrations; the compose `migrate` service runs it, then the seed. */
+  migrateCommand: string[]
+  /** Dependencies whose install scripts pnpm must run (added to `allowBuilds`). */
+  allowBuilds?: string[]
 }

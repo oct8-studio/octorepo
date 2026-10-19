@@ -10,7 +10,7 @@ describe('listOptions', () => {
     expect(o.frameworks.backend.map((f) => f.id)).toContain('express')
     expect(o.frameworks.frontend.map((f) => f.id)).toContain('next')
     expect(o.services.map((s) => s.id)).toContain('postgres')
-    expect(o.orms).toEqual([])
+    expect(o.orms.map((x) => x.id)).toEqual(['drizzle', 'prisma'])
     expect(o.presets).toEqual([])
   })
 
@@ -35,6 +35,6 @@ describe('formatOptions', () => {
     expect(text).toMatch(/Backend frameworks\s+.*express/)
     expect(text).toMatch(/Frontend frameworks\s+.*next/)
     expect(text).toMatch(/Services\s+.*postgres/)
-    expect(text).toMatch(/ORMs\s+\(none\)/)
+    expect(text).toMatch(/ORMs\s+drizzle, prisma/)
   })
 })

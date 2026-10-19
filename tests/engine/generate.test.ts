@@ -135,4 +135,57 @@ describe('generateProject', () => {
       expect(() => generateProject(bad, noSolid)).toThrow(/solid/)
     })
   })
+
+  describe('with an ORM', () => {
+    const backends: StackConfig['apps'] = [
+      { name: 'api', kind: 'backend', framework: 'express', apiStyle: 'rest', port: 4000 },
+      { name: 'core', kind: 'backend', framework: 'nest', apiStyle: 'rest', port: 4001 },
+    ]
+    const ormStack = (orm: 'drizzle' | 'prisma'): StackConfig => ({
+      ...stack,
+      apps: [stack.apps[0] as StackConfig['apps'][number], ...backends],
+      orm,
+    })
+
+    it.each(['drizzle', 'prisma'] as const)(
+      '%s: packages/db, backend deps, compose migrate',
+      (orm) => {
+        const t = generateProject(ormStack(orm), defaultRegistry())
+        expect(JSON.parse(t['packages/db/package.json'] as string).name).toBe('@acme/db')
+        expect(
+          t[orm === 'drizzle' ? 'packages/db/drizzle.config.ts' : 'packages/db/prisma.config.ts'],
+        ).toBeDefined()
+        for (const b of ['api', 'core']) {
+          const pkg = JSON.parse(t[`apps/${b}/package.json`] as string)
+          expect(pkg.dependencies['@acme/db'], b).toBe('workspace:*')
+          expect(t[`apps/${b}/src/db.ts`], b).toBeDefined()
+        }
+        expect(
+          JSON.parse(t['apps/web/package.json'] as string).dependencies['@acme/db'],
+        ).toBeUndefined()
+        const compose = parse(t['docker-compose.yml'] as string)
+        expect(compose.services.migrate).toBeDefined()
+        expect(compose.services.core.depends_on.migrate.condition).toBe(
+          'service_completed_successfully',
+        )
+        expect(parseManifest(JSON.parse(t['.octorepo.json'] as string)).orm).toBe(orm)
+      },
+    )
+
+    it('lets pnpm run the prisma install scripts only for prisma', () => {
+      const ws = (orm: 'drizzle' | 'prisma') =>
+        parse(generateProject(ormStack(orm), defaultRegistry())['pnpm-workspace.yaml'] as string)
+      expect(ws('prisma').allowBuilds).toEqual({
+        esbuild: true,
+        prisma: true,
+        '@prisma/engines': true,
+      })
+      expect(ws('drizzle').allowBuilds).toEqual({ esbuild: true })
+      expect(ws('prisma').packages).toEqual(['apps/*', 'packages/*'])
+    })
+
+    it('generates no db package without an ORM', () => {
+      expect(Object.keys(tree).some((p) => p.startsWith('packages/db/'))).toBe(false)
+    })
+  })
 })

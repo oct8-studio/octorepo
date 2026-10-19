@@ -1,6 +1,6 @@
 import { HelloResponseSchema } from '{{scope}}/types'
 import express, { type Express, type NextFunction, type Request, type Response } from 'express'
-import { DEFAULT_CORS_ORIGINS } from './generated/cors.js'
+{{dbImport}}import { DEFAULT_CORS_ORIGINS } from './generated/cors.js'
 
 export function parseOrigins(value: string | undefined): string[] {
   return (value ?? '')
@@ -43,5 +43,5 @@ export function createApp(): Express {
     res.json(HelloResponseSchema.parse({ message: 'Hello from {{name}}' }))
   })
 
-  return app
+{{dbRoute}}  return app
 }

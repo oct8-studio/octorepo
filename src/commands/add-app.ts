@@ -106,6 +106,7 @@ export async function runAddApp(opts: AddAppOptions, reg: Registry): Promise<Add
     packageManager: current.packageManager,
     apps: [...current.apps, opts.app],
     services: current.services,
+    ...(current.orm ? { orm: current.orm } : {}),
   }
   const { stack, errors, warnings, fixes } = validateStack(config, reg)
   if (errors.length) {

@@ -1,7 +1,7 @@
 import { cancel, confirm, intro, isCancel, multiselect, note, select, text } from '@clack/prompts'
 import { CLI_NAME } from '../meta'
 import { CancelledError, CliError } from '../model/errors'
-import type { AppKind, AppSpec, MonorepoTool, StackConfig } from '../model/stack'
+import type { AppKind, AppSpec, MonorepoTool, OrmId, StackConfig } from '../model/stack'
 import type { Registry } from '../plugins/registry'
 import { appNameProblem, type Issue, validateStack } from '../rules'
 
@@ -20,10 +20,11 @@ export function answer<T>(value: T): Exclude<T, symbol> {
 export function appNameValidator(
   kind: AppKind,
   existing: Pick<AppSpec, 'name' | 'kind'>[],
+  orm?: string,
 ): (value: string | undefined) => string | undefined {
   return (value) => {
     const name = value ?? ''
-    const problem = appNameProblem({ name, kind }, existing)
+    const problem = appNameProblem({ name, kind }, existing, orm)
     return problem ? `"${name}" ${problem}` : undefined
   }
 }
@@ -127,13 +128,29 @@ export async function promptForStack(
       )
     : []
 
+  // Only backends talk to the database, so the ORM question needs one.
+  const orm =
+    backends.length && reg.orms.size
+      ? answer(
+          await select<string>({
+            message: 'ORM (shared packages/db, adds postgres)',
+            options: [
+              { value: 'none', label: 'None' },
+              ...[...reg.orms.values()].map((o) => ({ value: o.id, label: o.label })),
+            ],
+          }),
+        )
+      : 'none'
+
   const stack: StackConfig = { name, monorepoTool, packageManager: 'pnpm', apps, services }
+  if (orm !== 'none') stack.orm = orm as OrmId
   const v = validateStack(stack, reg)
   note(
     [
       `${name} (${monorepoTool}, pnpm)`,
       ...v.stack.apps.map((a) => `  ${describeApp(a)}`),
-      `services: ${services.length ? services.join(', ') : 'none'}`,
+      `services: ${v.stack.services.length ? v.stack.services.join(', ') : 'none'}`,
+      `orm: ${stack.orm ?? 'none'}`,
       ...list('Auto-fixes', v.fixes),
       ...list('Warnings', v.warnings),
       ...list('Errors', v.errors),

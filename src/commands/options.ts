@@ -35,7 +35,7 @@ export function listOptions(reg: Registry): OptionsList {
         .map(({ id, label, apiStyles }) => ({ id, label, apiStyles })),
     },
     services: [...reg.services.values()].map(({ id, label }) => ({ id, label })),
-    orms: [],
+    orms: [...reg.orms.values()].map(({ id, label }) => ({ id, label })),
     presets: [],
   }
 }

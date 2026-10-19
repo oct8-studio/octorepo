@@ -31,14 +31,18 @@ function nameProblem(name: string): string | undefined {
 
 type NamedApp = Pick<AppSpec, 'name' | 'kind'>
 
+/** Compose service the ORM adds next to the apps; an app of that name would replace it. */
+const MIGRATE_SERVICE = 'migrate'
+
 /** Workspace packages the generator creates next to the apps (unscoped name → what it is). */
-function generatedPackages(apps: NamedApp[]): Map<string, string> {
+function generatedPackages(apps: NamedApp[], orm?: string): Map<string, string> {
   const pkgs = new Map([
     ['ui-react', 'shared React UI package'],
     ['ui-vue', 'shared Vue UI package'],
     ['ui-svelte', 'shared Svelte UI package'],
     ['ui-solid', 'shared Solid UI package'],
   ])
+  if (orm) pkgs.set('db', 'shared database package')
   for (const a of apps) {
     if (a.kind === 'backend') pkgs.set(`${a.name}-client`, `typed client of backend "${a.name}"`)
   }
@@ -49,12 +53,17 @@ function generatedPackages(apps: NamedApp[]): Map<string, string> {
  * Why `app` cannot join `existing` (format, reserved, duplicate or a clash with a generated
  * package name), or undefined. Prompts use it to validate names inline with validateStack's rules.
  */
-export function appNameProblem(app: NamedApp, existing: NamedApp[]): string | undefined {
+export function appNameProblem(
+  app: NamedApp,
+  existing: NamedApp[],
+  orm?: string,
+): string | undefined {
   const problem = nameProblem(app.name)
   if (problem) return problem
   const key = app.name.toLowerCase()
   if (existing.some((e) => e.name.toLowerCase() === key)) return 'is a duplicate app name'
-  const generated = generatedPackages([...existing, app]).get(app.name)
+  if (orm && app.name === MIGRATE_SERVICE) return 'is reserved for the database migration service'
+  const generated = generatedPackages([...existing, app], orm).get(app.name)
   if (generated) return `collides with the generated package ${app.name} (${generated})`
   const clash = app.kind === 'backend' && existing.find((e) => e.name === `${app.name}-client`)
   if (clash) return `would generate package ${clash.name}, which collides with app "${clash.name}"`
@@ -79,7 +88,7 @@ const appNameValid: Rule = {
       )
     }
     const seen = new Set<string>()
-    const generated = generatedPackages(stack.apps)
+    const generated = generatedPackages(stack.apps, stack.orm)
     for (const app of stack.apps) {
       // Case-insensitive uniqueness: directories collide on case-insensitive filesystems.
       const key = app.name.toLowerCase()
@@ -87,6 +96,9 @@ const appNameValid: Rule = {
       const problem =
         nameProblem(app.name) ??
         (seen.has(key) ? 'is a duplicate app name' : undefined) ??
+        (stack.orm && app.name === MIGRATE_SERVICE
+          ? 'is reserved for the database migration service'
+          : undefined) ??
         // Apps and generated packages share the @<project>/ scope.
         (pkg
           ? `collides with the generated package @${stack.name}/${app.name} (${pkg})`
@@ -209,6 +221,39 @@ const serviceKnown: Rule = {
   }),
 }
 
+const ormKnown: Rule = {
+  id: 'orm-known',
+  check: (stack, reg) => ({
+    issues:
+      stack.orm === undefined || reg.orm(stack.orm)
+        ? []
+        : [
+            err(
+              'orm-known',
+              `Unknown ORM "${stack.orm}". Valid: ${[...reg.orms.keys()].join(', ')}`,
+            ),
+          ],
+  }),
+}
+
+/** Every ORM targets PostgreSQL, so an ORM without the postgres service gets it added. */
+const ormNeedsPostgres: Rule = {
+  id: 'orm-needs-postgres',
+  check: (stack) => {
+    if (stack.orm === undefined || stack.services.includes('postgres')) return { issues: [] }
+    return {
+      issues: [
+        {
+          rule: 'orm-needs-postgres',
+          level: 'fix',
+          message: `Added the postgres service (required by ${stack.orm})`,
+        },
+      ],
+      stack: { ...stack, services: [...stack.services, 'postgres'] },
+    }
+  },
+}
+
 const assignPorts: Rule = {
   id: 'assign-ports',
   check: (stack, reg) => {
@@ -247,6 +292,8 @@ export const rules: Rule[] = [
   apiStyle,
   usesValid,
   frontendWithoutBackend,
+  ormKnown,
+  ormNeedsPostgres,
   serviceKnown,
   assignPorts,
 ]

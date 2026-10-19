@@ -28,6 +28,7 @@ const reg = new Registry()
     compose: () => ({ image: 'postgres' }),
     env: () => ({}),
   })
+  .registerOrm({ id: 'drizzle', label: 'Drizzle', generate: () => ({}), migrateCommand: [] })
 
 const fe = (name: string, extra: Partial<AppSpec> = {}): AppSpec => ({
   name,
@@ -171,5 +172,43 @@ describe('validateStack', () => {
   it('requires at least one app', () => {
     const r = validateStack(stack([]), reg)
     expect(r.errors.some((e) => e.rule === 'at-least-one-app')).toBe(true)
+  })
+
+  it('adds postgres when an ORM is set without it (fix, reported)', () => {
+    const r = validateStack(stack([be('api')], { orm: 'drizzle', services: [] }), reg)
+    expect(r.errors).toEqual([])
+    expect(r.stack.services).toEqual(['postgres'])
+    expect(r.fixes.filter((f) => f.rule === 'orm-needs-postgres')).toEqual([
+      expect.objectContaining({ message: 'Added the postgres service (required by drizzle)' }),
+    ])
+  })
+
+  it('leaves services alone when postgres is already there or no ORM is set', () => {
+    const withPg = validateStack(
+      stack([be('api')], { orm: 'drizzle', services: ['postgres'] }),
+      reg,
+    )
+    expect(withPg.stack.services).toEqual(['postgres'])
+    expect(withPg.fixes.some((f) => f.rule === 'orm-needs-postgres')).toBe(false)
+    expect(validateStack(stack([be('api')]), reg).stack.services).toEqual([])
+  })
+
+  it('flags an ORM the registry does not know', () => {
+    const r = validateStack(stack([be('api')], { orm: 'prisma' }), reg)
+    expect(r.errors).toEqual([
+      expect.objectContaining({
+        rule: 'orm-known',
+        message: 'Unknown ORM "prisma". Valid: drizzle',
+      }),
+    ])
+  })
+
+  it('reserves the db package and migrate service names when an ORM is set', () => {
+    const r = validateStack(stack([be('db'), be('migrate')], { orm: 'drizzle' }), reg)
+    expect(r.errors.map((e) => e.app)).toEqual(['db', 'migrate'])
+    expect(validateStack(stack([be('db'), be('migrate')]), reg).errors).toEqual([])
+    expect(appNameProblem({ name: 'migrate', kind: 'backend' }, [], 'drizzle')).toMatch(/reserved/)
+    expect(appNameProblem({ name: 'db', kind: 'backend' }, [], 'prisma')).toMatch(/collides/)
+    expect(appNameProblem({ name: 'db', kind: 'backend' }, [])).toBeUndefined()
   })
 })

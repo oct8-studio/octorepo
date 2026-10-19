@@ -110,4 +110,38 @@ describe('composeFiles', () => {
     const spaEnv = d.services.spa.environment ?? {}
     expect(Object.keys(spaEnv).filter((k) => k.endsWith('_URL'))).toEqual([])
   })
+
+  describe('with an ORM', () => {
+    const ormStack: StackConfig = {
+      ...stack,
+      apps: [
+        ...stack.apps,
+        { name: 'billing', kind: 'backend', framework: 'express', apiStyle: 'rest', port: 4001 },
+      ],
+      orm: 'drizzle',
+    }
+    const d = parse(
+      composeFiles({ ...ctx, stack: ormStack }, defaultRegistry())['docker-compose.yml'] as string,
+    )
+    it('adds a one-shot migrate service built from packages/db after postgres is healthy', () => {
+      expect(d.services.migrate).toEqual({
+        build: { context: '.', dockerfile: 'packages/db/Dockerfile' },
+        environment: { DATABASE_URL: 'postgres://postgres:postgres@postgres:5432/acme' },
+        depends_on: { postgres: { condition: 'service_healthy' } },
+      })
+    })
+    it('starts every backend only after migrate completed successfully', () => {
+      for (const b of ['api', 'billing']) {
+        expect(d.services[b].depends_on).toEqual({
+          postgres: { condition: 'service_healthy' },
+          migrate: { condition: 'service_completed_successfully' },
+        })
+      }
+      expect(d.services.web.depends_on.migrate).toBeUndefined()
+    })
+    it('has no migrate service without an ORM', () => {
+      expect(doc.services.migrate).toBeUndefined()
+      expect(doc.services.api.depends_on.migrate).toBeUndefined()
+    })
+  })
 })

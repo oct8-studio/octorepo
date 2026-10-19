@@ -18,6 +18,7 @@ interface CreateFlags {
   tool?: string
   app: string[]
   service: string[]
+  orm?: string
   install: boolean
   git: boolean
   force?: boolean
@@ -44,12 +45,13 @@ async function stackFromFlags(dir: string | undefined, flags: CreateFlags): Prom
     monorepoTool: tool,
     apps: [...(base.apps ?? []), ...flags.app.map(parseAppFlag)],
     services: [...(base.services ?? []), ...flags.service],
+    ...((flags.orm ?? base.orm) ? { orm: flags.orm ?? base.orm } : {}),
   })
 }
 
 async function create(dir: string | undefined, flags: CreateFlags): Promise<void> {
   const hasStackFlags = Boolean(
-    flags.config || flags.tool || flags.app.length || flags.service.length,
+    flags.config || flags.tool || flags.app.length || flags.service.length || flags.orm,
   )
   const interactive = !hasStackFlags && !flags.yes && !flags.json && process.stdin.isTTY
   if (!hasStackFlags && !interactive) {
@@ -113,14 +115,14 @@ async function addApp(
   if (name === undefined) {
     // Validate inline against the repo's apps; runAddApp reports a missing manifest itself.
     const existing = await readManifest(process.cwd()).then(
-      (m) => m.apps,
-      () => [],
+      (m) => m,
+      () => undefined,
     )
     name = answer(
       await text({
         message: 'App name',
         placeholder: 'api',
-        validate: appNameValidator(kind, existing),
+        validate: appNameValidator(kind, existing?.apps ?? [], existing?.orm),
       }),
     )
   }
@@ -162,6 +164,7 @@ program
   .option('--tool <tool>', 'monorepo tool: turbo | nx')
   .option('--app <spec>', 'kind:name:framework[:uses=a,b] (repeatable)', collect, [])
   .option('--service <id>', 'compose service (repeatable)', collect, [])
+  .option('--orm <id>', 'ORM for packages/db: drizzle | prisma (adds postgres)')
   .option('--no-install', 'skip pnpm install')
   .option('--no-git', 'skip git init')
   .option('--force', 'write into a non-empty directory')
