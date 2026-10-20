@@ -43,10 +43,17 @@ beforeEach(async () => {
 })
 
 describe('octorepo mcp server', () => {
-  it('exposes exactly the five tools, each with an object input schema', async () => {
+  it('exposes exactly the six tools, each with an object input schema', async () => {
     const { tools } = await client.listTools()
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['add_app', 'create', 'list_options', 'read_manifest', 'validate_stack'].sort(),
+      [
+        'add_app',
+        'add_service',
+        'create',
+        'list_options',
+        'read_manifest',
+        'validate_stack',
+      ].sort(),
     )
     for (const t of tools) {
       expect(t.inputSchema.type).toBe('object')
@@ -101,13 +108,100 @@ describe('octorepo mcp server', () => {
     expect(manifest.name).toBe('sibling')
   })
 
+  it('create with a preset puts preset apps first and appends stack.apps', async () => {
+    const r = await call('create', {
+      dir: 'p',
+      preset: 'api-platform',
+      stack: {
+        name: 'p',
+        monorepoTool: 'turbo',
+        apps: [{ name: 'jobs', kind: 'backend', framework: 'express' }],
+      },
+      install: false,
+      git: false,
+    })
+    expect(r.isError).toBeFalsy()
+    const m = JSON.parse(await readFile(join(cwd, 'p/.octorepo.json'), 'utf8'))
+    expect(m.preset).toBe('api-platform')
+    expect(m.apps.map((a: { name: string }) => a.name)).toEqual([
+      'edge',
+      'users',
+      'billing',
+      'docs',
+      'jobs',
+    ])
+  })
+
+  it('create with a preset rejects a colliding app name and writes nothing', async () => {
+    const r = await call('create', {
+      dir: 'q',
+      preset: 'saas',
+      stack: {
+        monorepoTool: 'turbo',
+        apps: [{ name: 'api', kind: 'backend', framework: 'express' }],
+      },
+      install: false,
+      git: false,
+    })
+    expect(r.isError).toBe(true)
+    expect(r.content[0]?.text).toContain('collides with preset')
+    expect(existsSync(join(cwd, 'q'))).toBe(false)
+  })
+
+  it('create with a preset defaults monorepoTool to turbo; without one it is required', async () => {
+    const r = await call('create', {
+      dir: 's',
+      preset: 'saas',
+      stack: {},
+      install: false,
+      git: false,
+    })
+    expect(r.isError).toBeFalsy()
+    const m = JSON.parse(await readFile(join(cwd, 's/.octorepo.json'), 'utf8'))
+    expect(m.monorepoTool).toBe('turbo')
+    expect(m.preset).toBe('saas')
+    const bad = await call('create', {
+      dir: 't',
+      stack: { apps: stack.apps },
+      install: false,
+      git: false,
+    })
+    expect(bad.isError).toBe(true)
+    expect(bad.content[0]?.text).toContain('monorepoTool')
+    expect(existsSync(join(cwd, 't'))).toBe(false)
+  })
+
+  it('a bare stack.preset (without the preset input) is stripped, not half-applied', async () => {
+    const r = await call('create', {
+      dir: 'b',
+      stack: { ...stack, preset: 'saas' },
+      install: false,
+      git: false,
+    })
+    expect(r.isError).toBeFalsy()
+    const m = JSON.parse(await readFile(join(cwd, 'b/.octorepo.json'), 'utf8'))
+    expect(m.preset).toBeUndefined()
+    expect(m.apps.map((a: { name: string }) => a.name)).toEqual(['web', 'api'])
+    const { name: _, ...unnamed } = stack
+    const v = body(await call('validate_stack', { ...unnamed, preset: 'saas' }))
+    expect(v.errors).toEqual([])
+    expect(v.stack.preset).toBeUndefined()
+  })
+
+  it('list_options includes the presets', async () => {
+    expect(body(await call('list_options')).presets.map((p: { id: string }) => p.id)).toEqual([
+      'saas',
+      'api-platform',
+    ])
+  })
+
   it('create refuses a non-empty dir with the CLI message', async () => {
     await mkdir(join(cwd, 'full'))
     await writeFile(join(cwd, 'full', 'keep.txt'), 'x')
     const r = await call('create', { dir: 'full', stack, install: false, git: false })
     expect(r.isError).toBe(true)
     expect(r.content[0]?.text).toBe(
-      `Directory ${join(cwd, 'full')} is not empty. Use --force to write into it anyway.`,
+      `Directory ${join(cwd, 'full')} is not empty. Pass an empty or new dir.`,
     )
     expect(existsSync(join(cwd, 'full', '.octorepo.json'))).toBe(false)
   })
@@ -135,6 +229,27 @@ describe('octorepo mcp server', () => {
     )
     const after = body(await call('read_manifest', { cwd: 'repo' }))
     expect(after.apps.map((a: { name: string }) => a.name)).toContain('billing')
+  })
+
+  it('add_service adds a service, then is a no-op for the same service', async () => {
+    await call('create', { dir: 'repo', stack, install: false, git: false })
+    const r = await call('add_service', { cwd: 'repo', service: 'mailpit' })
+    expect(r.isError).toBeFalsy()
+    const out = body(r)
+    expect(Object.keys(out).sort()).toEqual(['fixes', 'message', 'warnings', 'written'])
+    expect(out.written).toEqual(expect.arrayContaining([join(cwd, 'repo', 'docker-compose.yml')]))
+    const m = body(await call('read_manifest', { cwd: 'repo' }))
+    expect(m.services).toEqual(['mailpit'])
+    const again = body(await call('add_service', { cwd: 'repo', service: 'mailpit' }))
+    expect(again.written).toEqual([])
+    expect(again.message).toMatch(/already/)
+  })
+
+  it('add_service refuses an unknown service like the CLI', async () => {
+    await call('create', { dir: 'repo', stack, install: false, git: false })
+    const r = await call('add_service', { cwd: 'repo', service: 'kafka' })
+    expect(r.isError).toBe(true)
+    expect(r.content[0]?.text).toMatch(/^Invalid stack:[\s\S]*Unknown service "kafka"/)
   })
 
   it('read_manifest outside a generated repo is an error result', async () => {

@@ -84,10 +84,24 @@ export const VERSIONS: Readonly<Record<string, string>> = {
   vinxi: '0.5.11',
   'vite-plugin-solid': '2.11.14',
   '@solidjs/testing-library': '0.8.10',
+  // Plan 3 ORMs (packages/db)
+  'drizzle-orm': '0.45.4',
+  'drizzle-kit': '0.31.11',
+  // Newest stable 7.x: npm `latest` of prisma points at an 8.0 RC.
+  prisma: '7.10.1',
+  '@prisma/client': '7.10.1',
+  '@prisma/adapter-pg': '7.10.1',
+  pg: '8.23.1',
+  '@types/pg': '8.23.1',
 }
 
 /** Official Docker image major tags for compose services (`<image>:<major>-alpine`). */
 export const IMAGES = {
   postgres: '18',
   redis: '8',
+  valkey: '9',
+  rabbitmq: '4',
+  mailpit: 'v1',
+  // SeaweedFS publishes no major-version tags, only exact releases.
+  seaweedfs: '4.48',
 } as const

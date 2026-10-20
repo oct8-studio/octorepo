@@ -1,0 +1,6 @@
+{
+  "name": "services",
+  "monorepoTool": "turbo",
+  "apps": [{ "name": "api", "kind": "backend", "framework": "hono" }],
+  "services": ["postgres", "redis", "valkey", "rabbitmq", "mailpit", "s3"]
+}

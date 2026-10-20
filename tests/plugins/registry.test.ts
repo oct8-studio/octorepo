@@ -40,6 +40,9 @@ describe('Registry', () => {
   it('defaultRegistry registers every built-in plugin', () => {
     const r = defaultRegistry()
     expect([...r.monorepo.keys()].sort()).toEqual(['nx', 'turbo'])
+    expect([...r.orms.keys()]).toEqual(['drizzle', 'prisma'])
+    expect(r.orm('prisma')?.label).toBe('Prisma')
+    expect(r.orm('typeorm')).toBeUndefined()
     expect(
       r
         .frameworksOf('frontend')
@@ -63,6 +66,13 @@ describe('Registry', () => {
         .sort(),
     ).toEqual(['express', 'fastify', 'hono', 'koa', 'nest'])
     expect([...r.uiPackages.keys()].sort()).toEqual(['react', 'solid', 'svelte', 'vue'])
-    expect([...r.services.keys()].sort()).toEqual(['postgres', 'redis'])
+    expect([...r.services.keys()].sort()).toEqual([
+      'mailpit',
+      'postgres',
+      'rabbitmq',
+      'redis',
+      's3',
+      'valkey',
+    ])
   })
 })

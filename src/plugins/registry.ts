@@ -2,7 +2,7 @@ import { uiPackageFiles } from '../engine/ui'
 import { uiSolidPackageFiles } from '../engine/ui-solid'
 import { uiSveltePackageFiles } from '../engine/ui-svelte'
 import { uiVuePackageFiles } from '../engine/ui-vue'
-import type { AppKind, MonorepoTool } from '../model/stack'
+import type { AppKind, MonorepoTool, OrmId } from '../model/stack'
 import { expressPlugin } from './backend/express'
 import { fastifyPlugin } from './backend/fastify'
 import { honoPlugin } from './backend/hono'
@@ -19,11 +19,18 @@ import { tanstackStartPlugin } from './frontend/tanstack-start'
 import { vueVitePlugin } from './frontend/vue-vite'
 import { nxPlugin } from './monorepo/nx'
 import { turboPlugin } from './monorepo/turbo'
+import { drizzlePlugin } from './orm/drizzle'
+import { prismaPlugin } from './orm/prisma'
+import { mailpitPlugin } from './service/mailpit'
 import { postgresPlugin } from './service/postgres'
+import { rabbitmqPlugin } from './service/rabbitmq'
 import { redisPlugin } from './service/redis'
+import { s3Plugin } from './service/s3'
+import { valkeyPlugin } from './service/valkey'
 import type {
   FrameworkPlugin,
   MonorepoPlugin,
+  OrmPlugin,
   ServicePlugin,
   UiFamily,
   UiPackageGenerator,
@@ -34,6 +41,7 @@ export class Registry {
   readonly frameworks = new Map<string, FrameworkPlugin>()
   readonly services = new Map<string, ServicePlugin>()
   readonly uiPackages = new Map<UiFamily, UiPackageGenerator>()
+  readonly orms = new Map<OrmId, OrmPlugin>()
 
   registerMonorepo(plugin: MonorepoPlugin): this {
     this.monorepo.set(plugin.id, plugin)
@@ -55,6 +63,11 @@ export class Registry {
     return this
   }
 
+  registerOrm(plugin: OrmPlugin): this {
+    this.orms.set(plugin.id, plugin)
+    return this
+  }
+
   monorepoTool(id: MonorepoTool): MonorepoPlugin | undefined {
     return this.monorepo.get(id)
   }
@@ -66,6 +79,10 @@ export class Registry {
 
   service(id: string): ServicePlugin | undefined {
     return this.services.get(id)
+  }
+
+  orm(id: string): OrmPlugin | undefined {
+    return this.orms.get(id as OrmId)
   }
 
   ui(family: UiFamily): UiPackageGenerator | undefined {
@@ -98,6 +115,12 @@ export function defaultRegistry(): Registry {
     .registerFramework(solidStartPlugin)
     .registerService(postgresPlugin)
     .registerService(redisPlugin)
+    .registerService(valkeyPlugin)
+    .registerService(rabbitmqPlugin)
+    .registerService(mailpitPlugin)
+    .registerService(s3Plugin)
+    .registerOrm(drizzlePlugin)
+    .registerOrm(prismaPlugin)
     .registerUi('react', (ctx) => uiPackageFiles(ctx, 'react'))
     .registerUi('vue', uiVuePackageFiles)
     .registerUi('svelte', uiSveltePackageFiles)

@@ -28,6 +28,7 @@ const reg = new Registry()
     compose: () => ({ image: 'postgres' }),
     env: () => ({}),
   })
+  .registerOrm({ id: 'drizzle', label: 'Drizzle', generate: () => ({}), migrateCommand: [] })
 
 const fe = (name: string, extra: Partial<AppSpec> = {}): AppSpec => ({
   name,
@@ -94,6 +95,7 @@ describe('validateStack', () => {
   it('appNameProblem applies the same rules to one new app', () => {
     expect(appNameProblem({ name: 'Api', kind: 'backend' }, [])).toContain('must match')
     expect(appNameProblem({ name: 'types', kind: 'backend' }, [])).toContain('reserved')
+    expect(appNameProblem({ name: 'gateway', kind: 'backend' }, [])).toContain('reserved')
     expect(appNameProblem({ name: 'web', kind: 'frontend' }, [fe('web')])).toBe(
       'is a duplicate app name',
     )
@@ -105,6 +107,28 @@ describe('validateStack', () => {
       'would generate package api-client, which collides with app "api-client"',
     )
     expect(appNameProblem({ name: 'api', kind: 'backend' }, [fe('web')])).toBeUndefined()
+  })
+
+  it('rejects app names equal to any registered service id (compose key collision)', () => {
+    for (const id of reg.services.keys()) {
+      // Not only the services in use: `add service` may add the service later.
+      const r = validateStack(stack([be(id)]), reg)
+      const errs = r.errors.filter((e) => e.rule === 'app-name-valid')
+      expect(
+        errs.map((e) => e.app),
+        id,
+      ).toEqual([id])
+      expect(errs[0]?.message).toContain(`collides with the compose service "${id}"`)
+      expect(
+        appNameProblem({ name: id, kind: 'backend' }, [], undefined, reg.services.keys()),
+      ).toBe(`collides with the compose service "${id}"`)
+    }
+    expect(appNameProblem({ name: 'migrate', kind: 'backend' }, [], 'drizzle')).toContain(
+      'migration service',
+    )
+    expect(appNameProblem({ name: 'db', kind: 'backend' }, [], 'prisma')).toContain(
+      'shared database package',
+    )
   })
 
   it('flags invalid project name', () => {
@@ -171,5 +195,53 @@ describe('validateStack', () => {
   it('requires at least one app', () => {
     const r = validateStack(stack([]), reg)
     expect(r.errors.some((e) => e.rule === 'at-least-one-app')).toBe(true)
+  })
+
+  it('adds postgres when an ORM is set without it (fix, reported)', () => {
+    const r = validateStack(stack([be('api')], { orm: 'drizzle', services: [] }), reg)
+    expect(r.errors).toEqual([])
+    expect(r.stack.services).toEqual(['postgres'])
+    expect(r.fixes.filter((f) => f.rule === 'orm-needs-postgres')).toEqual([
+      expect.objectContaining({ message: 'Added the postgres service (required by drizzle)' }),
+    ])
+  })
+
+  it('leaves services alone when postgres is already there or no ORM is set', () => {
+    const withPg = validateStack(
+      stack([be('api')], { orm: 'drizzle', services: ['postgres'] }),
+      reg,
+    )
+    expect(withPg.stack.services).toEqual(['postgres'])
+    expect(withPg.fixes.some((f) => f.rule === 'orm-needs-postgres')).toBe(false)
+    expect(validateStack(stack([be('api')]), reg).stack.services).toEqual([])
+  })
+
+  it('warns when an ORM is set without any backend', () => {
+    const r = validateStack(stack([fe('web')], { orm: 'drizzle' }), reg)
+    expect(r.errors).toEqual([])
+    expect(r.warnings.filter((w) => w.rule === 'orm-without-backend')).toHaveLength(1)
+    const ok = validateStack(stack([be('api')], { orm: 'drizzle' }), reg)
+    expect(ok.warnings.some((w) => w.rule === 'orm-without-backend')).toBe(false)
+  })
+
+  it('flags an ORM the registry does not know, without adding postgres for it', () => {
+    const r = validateStack(stack([be('api')], { orm: 'prisma' }), reg)
+    expect(r.stack.services).toEqual([])
+    expect(r.fixes.some((f) => f.rule === 'orm-needs-postgres')).toBe(false)
+    expect(r.errors).toEqual([
+      expect.objectContaining({
+        rule: 'orm-known',
+        message: 'Unknown ORM "prisma". Valid: drizzle',
+      }),
+    ])
+  })
+
+  it('reserves the db package and migrate service names when an ORM is set', () => {
+    const r = validateStack(stack([be('db'), be('migrate')], { orm: 'drizzle' }), reg)
+    expect(r.errors.map((e) => e.app)).toEqual(['db', 'migrate'])
+    expect(validateStack(stack([be('db'), be('migrate')]), reg).errors).toEqual([])
+    expect(appNameProblem({ name: 'migrate', kind: 'backend' }, [], 'drizzle')).toMatch(/reserved/)
+    expect(appNameProblem({ name: 'db', kind: 'backend' }, [], 'prisma')).toMatch(/collides/)
+    expect(appNameProblem({ name: 'db', kind: 'backend' }, [])).toBeUndefined()
   })
 })

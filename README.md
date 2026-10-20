@@ -1,10 +1,22 @@
 # octorepo
 
-Scaffold multi-app Node/TypeScript monorepos: any number of frontends and backends, wired together, with **Nx** or **Turborepo**, Docker Compose and typed API clients. Add more apps later with `npx @oct8/octorepo add app`.
+Scaffold multi-app Node/TypeScript monorepos: any number of frontends and backends, wired together, with **Nx** or **Turborepo**, Docker Compose, typed API clients, an optional Drizzle or Prisma database package and an MCP server for coding agents. Add more apps and services later with `npx @oct8/octorepo add app|service`.
 
 <!-- TODO: demo GIF -->
 
 An [oct8 studio](https://github.com/oct8-studio) project.
+
+## How it compares
+
+As of 2026-10-19, from each project's README, docs and issue tracker ([notes](docs/research/2026-10-19-market.md)):
+
+| | octorepo | create-better-t-stack | create-turbo | create-nx-workspace | create-t3-turbo |
+|---|---|---|---|---|---|
+| Several frontends in one repo | yes | open PR (#1185) | via examples | yes (Nx generators) | Next.js + Expo |
+| Several backends in one repo | yes | no | no | yes | no (tRPC package) |
+| NestJS | yes | open PR (#1119) | no | yes | no |
+| Docker Compose for apps and services | yes | database only | no | no | no |
+| Agent integration | MCP server, Claude Code plugin, AGENTS.md | Claude Code plugin with MCP | agent skill, no MCP | MCP server, `configure-ai-agents` | none found |
 
 ## Quickstart
 
@@ -51,7 +63,55 @@ Or describe the stack in JSON and pass `--config stack.json`:
 }
 ```
 
-Other `create` flags: `--no-install`, `--no-git`, `--force`, `--json` (machine-readable result), `--yes`.
+Other `create` flags: `--orm drizzle|prisma` (see [Database](#database-orm)), `--preset <id>` (see [Presets](#presets)), `--no-install`, `--no-git`, `--force`, `--json` (machine-readable result), `--yes`.
+
+## Presets
+
+A preset is a ready-made stack. It is also the first question in interactive mode.
+
+| Preset | Apps | Services | ORM |
+|---|---|---|---|
+| `saas` | `web` (next), `admin` (react-vite), `api` (nest), `worker` (fastify) | postgres, valkey, mailpit | drizzle |
+| `api-platform` | `edge` (hono), `users` (nest), `billing` (fastify), `docs` (astro) | postgres, rabbitmq | prisma |
+
+```bash
+npx @oct8/octorepo create my-saas --preset saas --yes
+npx @oct8/octorepo create my-api --preset api-platform --tool nx --app backend:jobs:koa --yes
+```
+
+`--tool` defaults to `turbo` with a preset. Extra `--app`/`--service` flags (or `apps`/`services` in `--config`) are added after the preset's; an app whose name the preset already uses is rejected. `--orm` overrides the preset's ORM. The manifest records the preset in `preset`. A `preset` key inside `--config` JSON is ignored: use `--preset`.
+
+## Database (ORM)
+
+`--orm drizzle` or `--orm prisma` adds a shared `packages/db` (`@<name>/db`) with a `greetings` schema, a first migration and a seed. Every backend depends on it and serves `GET /db/health` (`{ "ok": true, "greetings": 1 }` once seeded, 503 while the database is unreachable). An ORM needs Postgres, so `postgres` is added if you didn't pick it (reported as a fix). One ORM per repo.
+
+Scripts, run with `pnpm --filter @<name>/db <script>`:
+
+| Script | Drizzle | Prisma |
+|---|---|---|
+| `db:migration` | `drizzle-kit generate`: write a migration from schema changes | `prisma migrate dev`: write and apply a migration (needs a running database) |
+| `db:migrate` | `drizzle-kit migrate`: apply committed migrations | `prisma migrate deploy`: apply committed migrations |
+| `db:seed` | insert the sample greeting (idempotent) | same |
+| `db:generate` | same as `db:migration` | regenerate the Prisma Client (the build runs it too) |
+
+`db:generate` means different things in the two ORMs, so prefer `db:migration` for "make a migration" in scripts and docs. Commit the migrations. With Prisma, `packages/db/src/generated/**` (the generated Prisma Client) is tool-owned; Drizzle generates nothing there.
+
+In Docker Compose, a one-shot `migrate` service runs `db:migrate` and `db:seed` after Postgres is healthy, and the backends start only once it has completed successfully. With `pnpm dev`, start Postgres (`docker compose up -d postgres`) and run `db:migrate` and `db:seed` yourself.
+
+## Services
+
+Docker Compose services, chosen with `--service` or added later with `add service`. Each has a healthcheck, publishes its ports on `127.0.0.1` only, and gives every backend its connection URL in `.env`. Credentials are for local development only.
+
+| Service | Image | Env var | Localhost | UI / credentials |
+|---|---|---|---|---|
+| `postgres` | `postgres` | `DATABASE_URL` | 5432 | `postgres` / `postgres` |
+| `redis` | `redis` | `REDIS_URL` | 6379 | no auth |
+| `valkey` | `valkey/valkey` | `VALKEY_URL` | 6380 | no auth |
+| `rabbitmq` | `rabbitmq` (management) | `AMQP_URL` | 5672 | UI http://localhost:15672, `app` / `app` |
+| `mailpit` | `axllent/mailpit` | `SMTP_URL` | 1025 | inbox UI http://localhost:8025 |
+| `s3` | `chrislusf/seaweedfs` (S3 API) | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | 8333 | key `octorepo` / `octorepo-local-secret`; the bucket is created on first upload |
+
+Backends validate their environment at startup with zod (`src/generated/env.ts`, tool-owned and refreshed by `add`): a missing or malformed variable, such as `DATABASE_URL` in a repo with an ORM, stops the server with a message naming it.
 
 ## Supported options
 
@@ -59,7 +119,9 @@ Other `create` flags: `--no-install`, `--no-git`, `--force`, `--json` (machine-r
 |---|---|
 | Backend frameworks | `express`, `fastify`, `hono`, `koa`, `nest` |
 | Frontend frameworks | `next`, `react-vite`, `react-router`, `tanstack-start`, `vue-vite`, `nuxt`, `sveltekit`, `astro`, `solid-start` |
-| Services (Docker Compose) | `postgres`, `redis` |
+| Services (Docker Compose) | `postgres`, `redis`, `valkey`, `rabbitmq`, `mailpit`, `s3` |
+| ORM | `drizzle`, `prisma` |
+| Presets | `saas`, `api-platform` |
 | Monorepo tool | `turbo`, `nx` |
 | Package manager | `pnpm` |
 
@@ -78,12 +140,14 @@ my-repo/
     ui-vue/             #   ui-react (Next, React Vite, React Router, TanStack Start),
     ui-svelte/          #   ui-vue (Vue Vite, Nuxt), ui-svelte (SvelteKit), ui-solid (SolidStart);
     ui-solid/           #   Astro pages use plain markup
+    db/                 # with --orm: schema, migrations, seed, client
   docker-compose.yml    # selected services + apps
   turbo.json | nx.json
   pnpm-workspace.yaml
   biome.json
   .github/workflows/    # CI
   .octorepo.json        # manifest used by `add`
+  AGENTS.md             # repo guide for coding agents (CLAUDE.md imports it)
 ```
 
 Each app ships a Dockerfile, and every workspace package has `build`, `dev`, `lint`, `typecheck` and `test` scripts.
@@ -105,9 +169,17 @@ npx @oct8/octorepo add app frontend admin react-vite --uses api,billing
 
 `add` also patches the root `.gitignore`, `.dockerignore` and `biome.json` when they miss entries that the current version generates. It only adds entries: missing ignore lines are appended, missing `files.includes` exclusions are appended, and `html.experimentalFullSupportEnabled` is set unless you set it yourself.
 
+Add a service the same way:
+
+```bash
+npx @oct8/octorepo add service rabbitmq
+```
+
+It regenerates `docker-compose.yml`, the root `.env.example`, the manifest, each backend's `src/generated/env.ts` and the `AGENTS.md` section, and appends the service's variables to each backend's `.env` and `.env.example` (existing lines are kept; a backend without a `.env` gets a copy of its updated `.env.example`). Adding a service the repo already has changes nothing; it also doesn't restore variables you deleted from `.env`.
+
 ### Upgrading from 0.1.x
 
-Repos generated by 0.1.x don't ignore the build output of the frameworks added in 0.2.0, so `pnpm lint` would lint `.nuxt` or `.svelte-kit`. Running `add app` with 0.2.0 fixes the three root files as described above. If you upgrade without running `add`, see [Upgrading from 0.1.x](CHANGELOG.md#upgrading-from-01x) in the changelog for the lines to add by hand.
+Repos generated by 0.1.x don't ignore the build output of the newer frameworks (Nuxt, SvelteKit and the rest), so `pnpm lint` would lint `.nuxt` or `.svelte-kit`. Running `add app` or `add service` with 0.3.0 or later fixes the three root files as described above. Their backends also don't run the startup env check until you opt them in. See [Upgrading from 0.1.x](CHANGELOG.md#upgrading-from-01x) in the changelog for both, including the lines to add by hand if you upgrade without running `add`.
 
 ## Use with AI agents
 
@@ -117,11 +189,14 @@ Repos generated by 0.1.x don't ignore the build output of the frameworks added i
 |---|---|---|
 | `list_options` | none | tools, frameworks, services, ORMs and presets (same as `octorepo options --json`) |
 | `validate_stack` | a stack config (the `--config` JSON) | `{ stack, errors, warnings, fixes }`; writes nothing |
-| `create` | `{ dir, stack, install?, git? }` | the `create --json` result |
+| `create` | `{ dir, stack, preset?, install?, git? }` | the `create --json` result |
 | `add_app` | `{ cwd, app, install? }` | the `add app --json` result |
+| `add_service` | `{ cwd, service }` | the `add service --json` result |
 | `read_manifest` | `{ cwd }` | the repo's `.octorepo.json` |
 
-Relative `dir` and `cwd` resolve against the directory the server runs in, and `create`/`add_app` refuse exactly where the CLI does (non-empty directory, invalid stack, existing app).
+Relative `dir` and `cwd` resolve against the directory the server runs in, and `create`/`add_app`/`add_service` refuse exactly where the CLI does (non-empty directory, invalid stack, existing app, unknown service). `stack.name` defaults to the directory name, and with `preset` set `stack.monorepoTool` defaults to `turbo`.
+
+Every generated repo has an `AGENTS.md` (and a `CLAUDE.md` that imports it) describing the apps, packages, services and their local URLs, the commands, and which files are tool-owned. octorepo rewrites only the part between `<!-- octorepo:begin -->` and `<!-- octorepo:end -->`, so add your own notes outside the markers. octorepo never writes `.mcp.json` into a generated repo; wiring up MCP servers is your choice.
 
 **Claude Code**: add the server to the current project,
 
@@ -151,7 +226,7 @@ Without MCP, `npx @oct8/octorepo options --json` lists the options and `create`/
 
 ## Roadmap
 
-tRPC, Prisma/Drizzle, more services, microservices, GraphQL, gRPC, Elysia, Angular.
+tRPC/oRPC, Better Auth, `doctor`/`upgrade`, Playwright, microservices, GraphQL, gRPC, Elysia, Angular.
 
 ## Contributing
 

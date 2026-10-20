@@ -1,11 +1,11 @@
 ---
 name: octorepo
-description: Scaffold a new multi-app TypeScript monorepo (Turborepo or Nx, pnpm) or add a frontend/backend app to one created by octorepo. Use when the user asks to start a monorepo, full-stack project or workspace with several apps, or to add an app to a repo that has an .octorepo.json.
+description: Scaffold a new multi-app TypeScript monorepo (Turborepo or Nx, pnpm), optionally from a preset and with a Drizzle or Prisma database package, or add a frontend/backend app or a Docker Compose service to one created by octorepo. Use when the user asks to start a monorepo, full-stack project or workspace with several apps, or to add an app or service to a repo that has an .octorepo.json.
 ---
 
 # octorepo
 
-octorepo generates pnpm monorepos with any number of frontends and backends, shared packages, typed API clients (one per backend a frontend `uses`), Docker Compose services and CI. The `octorepo` MCP server exposes it as tools. Prefer the tools over hand-writing the same scaffold.
+octorepo generates pnpm monorepos with any number of frontends and backends, shared packages, typed API clients (one per backend a frontend `uses`), Docker Compose services, an optional ORM package (`packages/db`), an `AGENTS.md` and CI. The `octorepo` MCP server exposes it as tools. Prefer the tools over hand-writing the same scaffold.
 
 ## Tools
 
@@ -16,6 +16,7 @@ octorepo generates pnpm monorepos with any number of frontends and backends, sha
 | `create` | Write a new repo into an empty or missing `dir`. |
 | `read_manifest` | Read `.octorepo.json` of an existing repo: its apps, services and tool. |
 | `add_app` | Add one app to an existing repo. Only tool-owned files are rewritten; user code is left alone. |
+| `add_service` | Add one compose service (e.g. `rabbitmq`, `s3`) to an existing repo; a no-op if it is already there. |
 
 Relative `dir`/`cwd` paths resolve against the directory the server was started in (the project you have open).
 
@@ -39,8 +40,10 @@ Relative `dir`/`cwd` paths resolve against the directory the server was started 
    - App names are lowercase kebab-case and unique.
    - `uses` lists the backends a frontend talks to; a typed client is generated for each.
    - Leave `port` out unless the user asked for one; ports are assigned.
+   - For a database, set `"orm": "drizzle"` or `"prisma"`; `postgres` is added if missing.
+   - If a preset from `list_options` fits, pass it as `create`'s `preset` input (not inside `stack`); `stack.apps` then only lists extra apps, and `monorepoTool` defaults to `turbo`.
 3. Call `validate_stack` with it. Fix every error and call it again until `errors` is empty. Tell the user about `fixes` and `warnings`.
-4. Call `create` with `{ dir, stack }`. `name` defaults to the directory name. `install` and `git` default to `true`; pass `false` only when the user wants to skip them.
+4. Call `create` with `{ dir, stack }` (plus `preset` if you chose one). `name` defaults to the directory name. `install` and `git` default to `true`; pass `false` only when the user wants to skip them.
 5. Report `root` and the `manual` steps from the result, then `pnpm dev` to start everything.
 
 If `create` returns an error (for example the directory is not empty), show the message to the user and ask; do not delete or overwrite their files.
@@ -48,10 +51,10 @@ If `create` returns an error (for example the directory is not empty), show the 
 ## Existing repo
 
 1. Call `read_manifest` with `{ cwd }` to see what is there.
-2. Call `add_app` with `{ cwd, app: { name, kind, framework, uses? } }`.
+2. Call `add_app` with `{ cwd, app: { name, kind, framework, uses? } }`, or `add_service` with `{ cwd, service }`.
 3. Report `written`, `fixes`, `warnings` and any `manual` steps.
 
-Prefer `add_app` over hand-editing tool-owned files (root `package.json`, `pnpm-workspace.yaml`, `turbo.json`/`nx.json`, `docker-compose.yml`, `packages/*-client/**`, `apps/*/src/generated/**`, `.octorepo.json`); `add_app` regenerates them.
+Prefer `add_app` over hand-editing tool-owned files (root `package.json`, `pnpm-workspace.yaml`, `turbo.json`/`nx.json`, `docker-compose.yml`, `packages/*-client/**`, `apps/*/src/generated/**`, `packages/db/src/generated/**`, `.octorepo.json`, the marked section of `AGENTS.md`); `add_app` and `add_service` regenerate them.
 
 ## Without the MCP server
 
@@ -61,4 +64,5 @@ The same operations exist on the CLI with machine-readable output:
 npx -y @oct8/octorepo options --json
 npx -y @oct8/octorepo create my-repo --config stack.json --yes --json
 npx -y @oct8/octorepo add app backend billing nest --json
+npx -y @oct8/octorepo add service mailpit --json
 ```

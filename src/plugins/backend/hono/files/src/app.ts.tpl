@@ -1,7 +1,7 @@
 import { HelloResponseSchema } from '{{scope}}/types'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { cors } from 'hono/cors'
-import { DEFAULT_CORS_ORIGINS } from './generated/cors.js'
+{{dbImport}}import { DEFAULT_CORS_ORIGINS } from './generated/cors.js'
 
 export function parseOrigins(value: string | undefined): string[] {
   return (value ?? '')
@@ -52,7 +52,7 @@ export function createApp() {
     c.json(HelloResponseSchema.parse({ message: 'Hello from {{name}}' }), 200),
   )
 
-  return app
+{{dbRoute}}  return app
 }
 
 export function buildOpenApiDocument() {

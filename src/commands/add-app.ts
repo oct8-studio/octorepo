@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { refreshAgentsSection } from '../engine/agents'
 import { generateProject } from '../engine/generate'
 import { type FileTree, json, mergeJson } from '../engine/tree'
 import { writeTree } from '../engine/write'
@@ -107,6 +108,8 @@ export async function runAddApp(opts: AddAppOptions, reg: Registry): Promise<Add
     packageManager: current.packageManager,
     apps: [...current.apps, opts.app],
     services: current.services,
+    ...(current.orm ? { orm: current.orm } : {}),
+    ...(current.preset ? { preset: current.preset } : {}),
   }
   const { stack, errors, warnings, fixes } = validateStack(config, reg)
   if (errors.length) {
@@ -132,6 +135,7 @@ export async function runAddApp(opts: AddAppOptions, reg: Registry): Promise<Add
   const root = await patchRootFiles(opts.cwd, generated)
   Object.assign(tree, root.tree)
   const written = await writeTree(opts.cwd, tree, { mode: 'update' })
+  written.push(...(await refreshAgentsSection(opts.cwd, stack)))
 
   const manual =
     opts.install === undefined

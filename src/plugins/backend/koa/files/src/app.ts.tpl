@@ -1,7 +1,7 @@
 import { HelloResponseSchema } from '{{scope}}/types'
 import Router from '@koa/router'
 import Koa from 'koa'
-import { DEFAULT_CORS_ORIGINS } from './generated/cors.js'
+{{dbImport}}import { DEFAULT_CORS_ORIGINS } from './generated/cors.js'
 
 export function parseOrigins(value: string | undefined): string[] {
   return (value ?? '')
@@ -45,7 +45,7 @@ export function createApp(): Koa {
     ctx.body = HelloResponseSchema.parse({ message: 'Hello from {{name}}' })
   })
 
-  app.use(router.routes())
+{{dbRoute}}  app.use(router.routes())
 
   return app
 }

@@ -31,14 +31,18 @@ function nameProblem(name: string): string | undefined {
 
 type NamedApp = Pick<AppSpec, 'name' | 'kind'>
 
+/** Compose service the ORM adds next to the apps; an app of that name would replace it. */
+const MIGRATE_SERVICE = 'migrate'
+
 /** Workspace packages the generator creates next to the apps (unscoped name → what it is). */
-function generatedPackages(apps: NamedApp[]): Map<string, string> {
+function generatedPackages(apps: NamedApp[], orm?: string): Map<string, string> {
   const pkgs = new Map([
     ['ui-react', 'shared React UI package'],
     ['ui-vue', 'shared Vue UI package'],
     ['ui-svelte', 'shared Svelte UI package'],
     ['ui-solid', 'shared Solid UI package'],
   ])
+  if (orm) pkgs.set('db', 'shared database package')
   for (const a of apps) {
     if (a.kind === 'backend') pkgs.set(`${a.name}-client`, `typed client of backend "${a.name}"`)
   }
@@ -46,15 +50,35 @@ function generatedPackages(apps: NamedApp[]): Map<string, string> {
 }
 
 /**
- * Why `app` cannot join `existing` (format, reserved, duplicate or a clash with a generated
- * package name), or undefined. Prompts use it to validate names inline with validateStack's rules.
+ * Apps share docker-compose.yml with the services, keyed by name, so an app named like any
+ * registered service (used or not, since `add service` may add it later) would replace it.
  */
-export function appNameProblem(app: NamedApp, existing: NamedApp[]): string | undefined {
+function serviceClash(name: string, serviceIds: Iterable<string>): string | undefined {
+  for (const id of serviceIds) {
+    if (id === name) return `collides with the compose service "${id}"`
+  }
+  return undefined
+}
+
+/**
+ * Why `app` cannot join `existing` (format, reserved, duplicate, a registered compose service
+ * id or a clash with a generated package name), or undefined. Prompts use it to validate names
+ * inline with validateStack's rules; pass the registry's service ids as `serviceIds`.
+ */
+export function appNameProblem(
+  app: NamedApp,
+  existing: NamedApp[],
+  orm?: string,
+  serviceIds: Iterable<string> = [],
+): string | undefined {
   const problem = nameProblem(app.name)
   if (problem) return problem
   const key = app.name.toLowerCase()
   if (existing.some((e) => e.name.toLowerCase() === key)) return 'is a duplicate app name'
-  const generated = generatedPackages([...existing, app]).get(app.name)
+  const service = serviceClash(app.name, serviceIds)
+  if (service) return service
+  if (orm && app.name === MIGRATE_SERVICE) return 'is reserved for the database migration service'
+  const generated = generatedPackages([...existing, app], orm).get(app.name)
   if (generated) return `collides with the generated package ${app.name} (${generated})`
   const clash = app.kind === 'backend' && existing.find((e) => e.name === `${app.name}-client`)
   if (clash) return `would generate package ${clash.name}, which collides with app "${clash.name}"`
@@ -71,7 +95,7 @@ const atLeastOneApp: Rule = {
 
 const appNameValid: Rule = {
   id: 'app-name-valid',
-  check: (stack) => {
+  check: (stack, reg) => {
     const issues: Issue[] = []
     if (!NAME_RE.test(stack.name)) {
       issues.push(
@@ -79,7 +103,7 @@ const appNameValid: Rule = {
       )
     }
     const seen = new Set<string>()
-    const generated = generatedPackages(stack.apps)
+    const generated = generatedPackages(stack.apps, stack.orm)
     for (const app of stack.apps) {
       // Case-insensitive uniqueness: directories collide on case-insensitive filesystems.
       const key = app.name.toLowerCase()
@@ -87,6 +111,10 @@ const appNameValid: Rule = {
       const problem =
         nameProblem(app.name) ??
         (seen.has(key) ? 'is a duplicate app name' : undefined) ??
+        serviceClash(app.name, reg.services.keys()) ??
+        (stack.orm && app.name === MIGRATE_SERVICE
+          ? 'is reserved for the database migration service'
+          : undefined) ??
         // Apps and generated packages share the @<project>/ scope.
         (pkg
           ? `collides with the generated package @${stack.name}/${app.name} (${pkg})`
@@ -209,6 +237,57 @@ const serviceKnown: Rule = {
   }),
 }
 
+const ormKnown: Rule = {
+  id: 'orm-known',
+  check: (stack, reg) => ({
+    issues:
+      stack.orm === undefined || reg.orm(stack.orm)
+        ? []
+        : [
+            err(
+              'orm-known',
+              `Unknown ORM "${stack.orm}". Valid: ${[...reg.orms.keys()].join(', ')}`,
+            ),
+          ],
+  }),
+}
+
+/** Every ORM targets PostgreSQL, so an ORM without the postgres service gets it added. */
+const ormNeedsPostgres: Rule = {
+  id: 'orm-needs-postgres',
+  check: (stack, reg) => {
+    // An unknown ORM is orm-known's error; don't also rewrite services for it.
+    if (stack.orm === undefined || !reg.orm(stack.orm) || stack.services.includes('postgres'))
+      return { issues: [] }
+    return {
+      issues: [
+        {
+          rule: 'orm-needs-postgres',
+          level: 'fix',
+          message: `Added the postgres service (required by ${stack.orm})`,
+        },
+      ],
+      stack: { ...stack, services: [...stack.services, 'postgres'] },
+    }
+  },
+}
+
+const ormWithoutBackend: Rule = {
+  id: 'orm-without-backend',
+  check: (stack) => ({
+    issues:
+      stack.orm !== undefined && !stack.apps.some((a) => a.kind === 'backend')
+        ? [
+            {
+              rule: 'orm-without-backend',
+              level: 'warning',
+              message: `ORM "${stack.orm}" is set but no backend uses packages/db`,
+            },
+          ]
+        : [],
+  }),
+}
+
 const assignPorts: Rule = {
   id: 'assign-ports',
   check: (stack, reg) => {
@@ -247,6 +326,9 @@ export const rules: Rule[] = [
   apiStyle,
   usesValid,
   frontendWithoutBackend,
+  ormKnown,
+  ormNeedsPostgres,
+  ormWithoutBackend,
   serviceKnown,
   assignPorts,
 ]

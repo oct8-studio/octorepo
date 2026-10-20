@@ -64,6 +64,13 @@ describe('octorepo mcp over stdio', () => {
     const init = messages.find((m) => m.id === 1)
     expect(init.result.serverInfo.name).toBeTruthy()
     const list = messages.find((m) => m.id === 2)
-    expect(list.result.tools).toHaveLength(5)
+    expect(list.result.tools.map((t: { name: string }) => t.name).sort()).toEqual([
+      'add_app',
+      'add_service',
+      'create',
+      'list_options',
+      'read_manifest',
+      'validate_stack',
+    ])
   }, 30_000)
 })

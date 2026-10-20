@@ -1,0 +1,6 @@
+{
+  "name": "platform",
+  "monorepoTool": "nx",
+  "preset": "api-platform",
+  "apps": []
+}

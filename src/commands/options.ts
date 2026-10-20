@@ -1,5 +1,6 @@
 import type { Registry } from '../plugins/registry'
 import type { UiFamily } from '../plugins/types'
+import { PRESETS } from '../presets'
 
 export interface Option {
   id: string
@@ -14,9 +15,7 @@ export interface OptionsList {
     backend: (Option & { apiStyles: string[] })[]
   }
   services: Option[]
-  /** Filled once ORM plugins are registered. */
   orms: Option[]
-  /** Filled once presets are registered. */
   presets: { id: string; description: string }[]
 }
 
@@ -35,8 +34,8 @@ export function listOptions(reg: Registry): OptionsList {
         .map(({ id, label, apiStyles }) => ({ id, label, apiStyles })),
     },
     services: [...reg.services.values()].map(({ id, label }) => ({ id, label })),
-    orms: [],
-    presets: [],
+    orms: [...reg.orms.values()].map(({ id, label }) => ({ id, label })),
+    presets: PRESETS.map(({ id, description }) => ({ id, description })),
   }
 }
 

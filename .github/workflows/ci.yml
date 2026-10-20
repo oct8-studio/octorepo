@@ -33,6 +33,27 @@ jobs:
           npm init -y > /dev/null
           npm install --no-audit --no-fund "$RUNNER_TEMP"/pack/oct8-octorepo-*.tgz
           npx octorepo create "$RUNNER_TEMP/smoke/x" --tool turbo --app backend:api:express --no-install --no-git --json
+      # The packaged `octorepo mcp` answers initialize + tools/list over stdio with JSON-only stdout.
+      - name: MCP stdio smoke
+        working-directory: ${{ runner.temp }}/smoke
+        run: |
+          {
+            echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}'
+            echo '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+            echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+            sleep 5
+          } | npx octorepo mcp > mcp.out
+          cat mcp.out
+          node -e '
+            const msgs = require("fs").readFileSync("mcp.out", "utf8").trim().split("\n").map((l) => JSON.parse(l))
+            const init = msgs.find((m) => m.id === 1)
+            const list = msgs.find((m) => m.id === 2)
+            if (!init?.result?.serverInfo?.name) throw new Error("no initialize result")
+            const names = list?.result?.tools?.map((t) => t.name).sort().join(",")
+            const want = "add_app,add_service,create,list_options,read_manifest,validate_stack"
+            if (names !== want) throw new Error(`tools/list: ${names}`)
+            console.log("mcp ok:", names)
+          '
 
   matrix:
     runs-on: ubuntu-latest
@@ -54,8 +75,8 @@ jobs:
     timeout-minutes: 45
     strategy:
       fail-fast: false
-      matrix:
-        combo: ${{ fromJSON(needs.matrix.outputs.combos) }}
+      # { include: [{ combo, args }] } from scripts/combos.ts: ORM combos also run --compose.
+      matrix: ${{ fromJSON(needs.matrix.outputs.combos) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -63,8 +84,9 @@ jobs:
           node-version: 24
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
-      # --dev: `pnpm dev` on the fresh repo must serve every app (all 30 combos, turbo and nx).
-      - run: pnpm tsx scripts/e2e.ts ${{ matrix.combo }} --dev
+      # --dev: `pnpm dev` on the fresh repo must serve every app (every combo, turbo and nx);
+      # ORM combos add --compose: migrate + seed run, then /db/health must report one greeting.
+      - run: pnpm tsx scripts/e2e.ts ${{ matrix.combo }} ${{ matrix.args }}
 
   fixture:
     needs: unit
@@ -92,3 +114,35 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm tsx scripts/e2e.ts --fixture fixtures/families.json --dev --compose
+
+  # Each preset as-is (saas: drizzle on turbo; api-platform: prisma on nx), dev and compose.
+  fixture-presets:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture: [presets-saas, presets-api-platform]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tsx scripts/e2e.ts --fixture fixtures/${{ matrix.fixture }}.json --dev --compose
+
+  # All six compose services next to one backend: every container must report healthy.
+  fixture-services:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tsx scripts/e2e.ts --fixture fixtures/services.json --compose

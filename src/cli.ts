@@ -3,21 +3,25 @@ import { basename, relative, resolve } from 'node:path'
 import { select, text } from '@clack/prompts'
 import { Command } from 'commander'
 import { readManifest, runAddApp } from './commands/add-app'
-import { runCreate } from './commands/create'
+import { runAddService } from './commands/add-service'
+import { nextSteps, runCreate } from './commands/create'
 import { parseAppFlag, parseUses } from './commands/flags'
 import { formatOptions, listOptions } from './commands/options'
 import { answer, appNameValidator } from './commands/prompts'
-import { runMcpServer } from './mcp/server'
+import { kbeeHint } from './engine/agents'
 import { CLI_NAME, CLI_VERSION } from './meta'
 import { CliError, formatError } from './model/errors'
 import { type AppKind, type AppSpec, parseStackConfig, type StackConfig } from './model/stack'
 import { defaultRegistry } from './plugins/registry'
+import { applyPreset } from './presets'
 
 interface CreateFlags {
   config?: string
   tool?: string
   app: string[]
   service: string[]
+  orm?: string
+  preset?: string
   install: boolean
   git: boolean
   force?: boolean
@@ -36,20 +40,28 @@ async function stackFromFlags(dir: string | undefined, flags: CreateFlags): Prom
       throw new CliError(`Cannot read --config ${flags.config}: ${(e as Error).message}`)
     }
   }
-  const tool = flags.tool ?? base.monorepoTool
+  // A preset alone is a complete stack, so the tool falls back to turbo.
+  const tool = flags.tool ?? base.monorepoTool ?? (flags.preset ? 'turbo' : undefined)
   if (!tool) throw new CliError('Missing --tool <turbo|nx> (or monorepoTool in --config)')
-  return parseStackConfig({
+  const stack = parseStackConfig({
     ...base,
     name: base.name ?? basename(resolve(dir ?? '.')),
     monorepoTool: tool,
     apps: [...(base.apps ?? []), ...flags.app.map(parseAppFlag)],
     services: [...(base.services ?? []), ...flags.service],
+    ...((flags.orm ?? base.orm) ? { orm: flags.orm ?? base.orm } : {}),
   })
+  return flags.preset ? applyPreset(flags.preset, stack) : stack
 }
 
 async function create(dir: string | undefined, flags: CreateFlags): Promise<void> {
   const hasStackFlags = Boolean(
-    flags.config || flags.tool || flags.app.length || flags.service.length,
+    flags.config ||
+      flags.tool ||
+      flags.app.length ||
+      flags.service.length ||
+      flags.orm ||
+      flags.preset,
   )
   const interactive = !hasStackFlags && !flags.yes && !flags.json && process.stdin.isTTY
   if (!hasStackFlags && !interactive) {
@@ -78,7 +90,10 @@ async function create(dir: string | undefined, flags: CreateFlags): Promise<void
   const rel = relative(process.cwd(), result.root)
   const cd = rel && !rel.startsWith('..') ? rel : result.root
   console.log(`\nCreated ${result.root}\n\nNext steps:`)
-  for (const cmd of [`cd ${cd}`, ...result.manual, 'pnpm dev']) console.log(`  ${cmd}`)
+  for (const line of nextSteps(cd, result.manual, await readManifest(result.root))) {
+    console.log(line ? `  ${line}` : '')
+  }
+  console.log(`\n${kbeeHint()}`)
 }
 
 interface AddAppFlags {
@@ -113,14 +128,14 @@ async function addApp(
   if (name === undefined) {
     // Validate inline against the repo's apps; runAddApp reports a missing manifest itself.
     const existing = await readManifest(process.cwd()).then(
-      (m) => m.apps,
-      () => [],
+      (m) => m,
+      () => undefined,
     )
     name = answer(
       await text({
         message: 'App name',
         placeholder: 'api',
-        validate: appNameValidator(kind, existing),
+        validate: appNameValidator(kind, existing?.apps ?? [], existing?.orm, reg.services.keys()),
       }),
     )
   }
@@ -153,6 +168,34 @@ async function addApp(
   for (const cmd of result.manual ?? []) console.log(`  ${cmd}`)
 }
 
+async function addService(
+  serviceArg: string | undefined,
+  flags: { json?: boolean },
+): Promise<void> {
+  const reg = defaultRegistry()
+  const interactive = Boolean(process.stdin.isTTY) && !flags.json
+  if (!serviceArg && !interactive) throw new CliError('Usage: add service <name>')
+  const service =
+    serviceArg ??
+    answer(
+      await select<string>({
+        message: 'Service',
+        options: [...reg.services.values()].map((s) => ({ value: s.id, label: s.label })),
+      }),
+    )
+  const result = await runAddService(
+    { cwd: process.cwd(), service, json: Boolean(flags.json) },
+    reg,
+  )
+  if (flags.json) {
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+    return
+  }
+  for (const f of result.fixes) console.log(`fix: ${f.message}`)
+  for (const w of result.warnings) console.log(`warning: ${w.message}`)
+  console.log(`\n${result.message} (${result.written.length} files written)`)
+}
+
 const program = new Command()
 program.name(CLI_NAME).version(CLI_VERSION)
 program
@@ -162,6 +205,11 @@ program
   .option('--tool <tool>', 'monorepo tool: turbo | nx')
   .option('--app <spec>', 'kind:name:framework[:uses=a,b] (repeatable)', collect, [])
   .option('--service <id>', 'compose service (repeatable)', collect, [])
+  .option('--orm <id>', 'ORM for packages/db: drizzle | prisma (adds postgres)')
+  .option(
+    '--preset <id>',
+    'start from a preset: saas | api-platform (extra --app flags are appended)',
+  )
   .option('--no-install', 'skip pnpm install')
   .option('--no-git', 'skip git init')
   .option('--force', 'write into a non-empty directory')
@@ -169,9 +217,8 @@ program
   .option('--yes', 'never prompt')
   .action(create)
 
-program
-  .command('add')
-  .description('Add to an existing monorepo')
+const add = program.command('add').description('Add to an existing monorepo')
+add
   .command('app [kind] [name] [framework]')
   .description('Add an app: add app <kind> <name> <framework>')
   .option('--uses <names>', 'comma-separated backends a frontend uses')
@@ -179,6 +226,11 @@ program
   .option('--no-install', 'skip pnpm install')
   .option('--json', 'print machine-readable result only')
   .action(addApp)
+add
+  .command('service [name]')
+  .description('Add a docker compose service: add service <name>')
+  .option('--json', 'print machine-readable result only')
+  .action(addService)
 
 program
   .command('options')
@@ -194,7 +246,11 @@ program
 program
   .command('mcp')
   .description('Run the MCP server on stdio (for AI agents)')
-  .action(() => runMcpServer(defaultRegistry()))
+  .action(async () => {
+    // Loaded on demand so other commands don't pay for the MCP SDK's import cost.
+    const { runMcpServer } = await import('./mcp/server')
+    await runMcpServer(defaultRegistry())
+  })
 
 try {
   await program.parseAsync()

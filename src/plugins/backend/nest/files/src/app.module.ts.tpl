@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common'
 import { AppController } from './app.controller'
-
-@Module({ controllers: [AppController] })
+{{dbImport}}
+@Module({ controllers: [{{controllers}}] })
 export class AppModule {}

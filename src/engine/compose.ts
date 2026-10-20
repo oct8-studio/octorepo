@@ -5,6 +5,9 @@ import type { Registry } from '../plugins/registry'
 import type { FileTree, ProjectContext, ServicePlugin } from '../plugins/types'
 import { upperSnake } from './names'
 
+/** Compose service of the ORM's one-shot migrate + seed job. */
+export const MIGRATE = 'migrate'
+
 const HEADER = `# Managed by octorepo: regenerated when you add apps or services.
 # Put local changes in docker-compose.override.yml (merged automatically by docker compose).
 `
@@ -57,11 +60,12 @@ export function composeFiles(ctx: ProjectContext, reg: Registry): FileTree {
     }
     if (app.kind === 'backend') {
       entry.environment = { PORT: String(p), CORS_ORIGINS: cors, ...serviceEnv(ctx, reg) }
-      if (svc.length > 0) {
-        entry.depends_on = Object.fromEntries(
-          svc.map((s) => [s.id, { condition: 'service_healthy' }]),
-        )
-      }
+      const deps: Record<string, { condition: string }> = Object.fromEntries(
+        svc.map((s) => [s.id, { condition: 'service_healthy' }]),
+      )
+      // Migrations and the seed finish before any backend starts.
+      if (stack.orm) deps[MIGRATE] = { condition: 'service_completed_successfully' }
+      if (Object.keys(deps).length > 0) entry.depends_on = deps
     } else {
       const backends = stack.apps.filter((b) => app.uses?.includes(b.name))
       // SPAs bake backend URLs into the bundle at build time (Dockerfile ARGs); SSR apps read them at runtime.
@@ -80,6 +84,18 @@ export function composeFiles(ctx: ProjectContext, reg: Registry): FileTree {
       }
     }
     out[app.name] = entry
+  }
+
+  if (stack.orm) {
+    const postgres = reg.service('postgres')
+    if (!postgres)
+      throw new CliError('The ORM needs the postgres service; validate the stack first')
+    // One-shot (compose's default restart policy is "no"): migrates, seeds, exits 0.
+    out[MIGRATE] = {
+      build: { context: '.', dockerfile: 'packages/db/Dockerfile' },
+      environment: postgres.env(ctx),
+      depends_on: { postgres: { condition: 'service_healthy' } },
+    }
   }
 
   const volumes: Record<string, Record<string, never>> = {}
