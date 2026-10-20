@@ -23,13 +23,13 @@ As of 2026-10-19, from each project's README, docs and issue tracker ([notes](do
 Requires Node >= 22.12 to run the CLI; generated repos target Node 24 (`.nvmrc`, `engines`, `node:24-alpine`). pnpm is used for generated repos.
 
 ```bash
-npx @oct8/octorepo create my-repo
+npx @oct8/octorepo@latest create my-repo
 ```
 
 Or, equivalently:
 
 ```bash
-npm create @oct8/octorepo my-repo
+npm create @oct8/octorepo@latest my-repo
 ```
 
 Run without flags in a terminal and octorepo asks for the stack interactively; the project name defaults to the directory name (`my-repo` above).
@@ -39,7 +39,7 @@ Without a `[dir]` argument the project is created in `./<name>`. In non-interact
 ## Non-interactive use
 
 ```bash
-npx @oct8/octorepo create my-repo \
+npx @oct8/octorepo@latest create my-repo \
   --tool turbo \
   --app frontend:web:next:uses=api \
   --app backend:api:nest \
@@ -75,8 +75,8 @@ A preset is a ready-made stack. It is also the first question in interactive mod
 | `api-platform` | `edge` (hono), `users` (nest), `billing` (fastify), `docs` (astro) | postgres, rabbitmq | prisma |
 
 ```bash
-npx @oct8/octorepo create my-saas --preset saas --yes
-npx @oct8/octorepo create my-api --preset api-platform --tool nx --app backend:jobs:koa --yes
+npx @oct8/octorepo@latest create my-saas --preset saas --yes
+npx @oct8/octorepo@latest create my-api --preset api-platform --tool nx --app backend:jobs:koa --yes
 ```
 
 `--tool` defaults to `turbo` with a preset. Extra `--app`/`--service` flags (or `apps`/`services` in `--config`) are added after the preset's; an app whose name the preset already uses is rejected. `--orm` overrides the preset's ORM. The manifest records the preset in `preset`. A `preset` key inside `--config` JSON is ignored: use `--preset`.
