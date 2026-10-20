@@ -1,6 +1,6 @@
 {
   "name": "@oct8/octorepo",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Scaffold multi-app Node/TypeScript monorepos (Turborepo or Nx): Next.js, Nuxt, SvelteKit, Astro, Vue, React frontends; NestJS, Express, Fastify, Hono, Koa backends; Drizzle or Prisma ORM; Postgres, Redis, Valkey, RabbitMQ, Mailpit and S3 services in Docker Compose; saas and api-platform presets; and an MCP server for AI agents",
   "keywords": [
     "monorepo",

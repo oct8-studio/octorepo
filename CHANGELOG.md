@@ -4,7 +4,11 @@ All notable changes to octorepo are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [0.3.0] - Unreleased
+## 0.3.1
+
+Republish of 0.3.0 (the 0.3.0 staged publish could not be completed on npm). No code changes.
+
+## [0.3.0] — not published (superseded by 0.3.1)
 
 ### Added
 

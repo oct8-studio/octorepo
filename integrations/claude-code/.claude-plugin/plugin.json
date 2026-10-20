@@ -1,7 +1,7 @@
 {
   "name": "octorepo",
   "displayName": "octorepo",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Scaffold and extend pnpm monorepos (Turborepo or Nx) with frontends, backends, typed API clients and Docker Compose, through the octorepo MCP server",
   "author": {
     "name": "oct8 studio",
