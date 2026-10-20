@@ -61,8 +61,8 @@ Prefer `add_app` over hand-editing tool-owned files (root `package.json`, `pnpm-
 The same operations exist on the CLI with machine-readable output:
 
 ```bash
-npx -y @oct8/octorepo options --json
-npx -y @oct8/octorepo create my-repo --config stack.json --yes --json
-npx -y @oct8/octorepo add app backend billing nest --json
-npx -y @oct8/octorepo add service mailpit --json
+npx -y @oct8/octorepo@latest options --json
+npx -y @oct8/octorepo@latest create my-repo --config stack.json --yes --json
+npx -y @oct8/octorepo@latest add app backend billing nest --json
+npx -y @oct8/octorepo@latest add service mailpit --json
 ```
