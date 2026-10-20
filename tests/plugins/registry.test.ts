@@ -40,7 +40,29 @@ describe('Registry', () => {
   it('defaultRegistry registers every built-in plugin', () => {
     const r = defaultRegistry()
     expect([...r.monorepo.keys()].sort()).toEqual(['nx', 'turbo'])
-    expect([...r.frameworks.keys()].sort()).toEqual(['express', 'nest', 'next', 'react-vite'])
+    expect(
+      r
+        .frameworksOf('frontend')
+        .map((f) => f.id)
+        .sort(),
+    ).toEqual([
+      'astro',
+      'next',
+      'nuxt',
+      'react-router',
+      'react-vite',
+      'solid-start',
+      'sveltekit',
+      'tanstack-start',
+      'vue-vite',
+    ])
+    expect(
+      r
+        .frameworksOf('backend')
+        .map((f) => f.id)
+        .sort(),
+    ).toEqual(['express', 'fastify', 'hono', 'koa', 'nest'])
+    expect([...r.uiPackages.keys()].sort()).toEqual(['react', 'solid', 'svelte', 'vue'])
     expect([...r.services.keys()].sort()).toEqual(['postgres', 'redis'])
   })
 })

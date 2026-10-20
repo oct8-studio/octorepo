@@ -1,12 +1,14 @@
 /**
  * End-to-end check of a generated repo (Task 14 quality gate).
  *
- *   pnpm tsx scripts/e2e.ts <comboId | --fixture path> [--dev] [--compose] [--keep]
+ *   pnpm tsx scripts/e2e.ts <comboId | --fixture path> [--dev] [--compose] [--keep] [--no-docker]
  *
  * Generates the stack into a temp dir with install on, then runs lint, typecheck, test, build and a
  * `docker build` per app. With --dev it first runs `pnpm dev` on the fresh repo (nothing built yet)
  * and checks every app answers like it would for a developer, then kills the whole process tree.
- * With --compose it also boots docker compose and checks /health, the Next page HTML and Vite CORS.
+ * With --compose it also boots docker compose and checks /health, every SSR page's HTML and SPA CORS.
+ * --no-docker skips the image builds (local use when no Docker engine is available; CI never passes it).
+ * Lint runs after the post-install `biome check --write`, so formatting can't hide a broken template.
  */
 import { type ChildProcess, spawn } from 'node:child_process'
 import { appendFileSync, openSync } from 'node:fs'
@@ -19,6 +21,7 @@ import { parseStackConfig, type StackConfig } from '../src/model/stack'
 import { defaultRegistry } from '../src/plugins/registry'
 import { validateStack } from '../src/rules'
 import { findCombo } from './combos'
+import { runsAsRoot } from './non-root'
 
 interface StepResult {
   step: string
@@ -199,7 +202,7 @@ async function devSmoke(stack: StackConfig, root: string, logPath: string): Prom
     for (const fe of stack.apps.filter((a) => a.kind === 'frontend')) {
       const origin = `http://localhost:${fe.port}`
       const uses = backends.filter((b) => fe.uses?.includes(b.name))
-      if (fe.framework === 'next') {
+      if (defaultRegistry().framework(fe.framework, 'frontend')?.rendering === 'ssr') {
         // Server-side render: the page HTML carries each backend's /hello message.
         await eventually(async () => {
           const res = await get(`${origin}/`)
@@ -211,8 +214,11 @@ async function devSmoke(stack: StackConfig, root: string, logPath: string): Prom
         }, 120_000)
       } else {
         // Vite resolves and transforms these on request, so they fail if a workspace import is missing.
-        await get(`${origin}/`)
-        await get(`${origin}/src/App.tsx`)
+        const html = await get(`${origin}/`)
+        const entry = /<script type="module" src="([^"]+)"/.exec(html.body)?.[1]
+        if (!entry) throw new Error(`${fe.name} index.html has no module entry`)
+        await get(`${origin}${entry}`)
+        await get(`${origin}/src/${SPA_ROOT_COMPONENT[fe.framework] ?? 'App.tsx'}`)
         await get(`${origin}/src/generated/api.ts`)
         for (const b of uses) {
           const res = await get(`http://localhost:${b.port}/hello`, { headers: { Origin: origin } })
@@ -230,13 +236,41 @@ async function devSmoke(stack: StackConfig, root: string, logPath: string): Prom
   }
 }
 
+/** The root component Vite must transform for each SPA framework. */
+const SPA_ROOT_COMPONENT: Record<string, string> = {
+  'react-vite': 'App.tsx',
+  'vue-vite': 'App.vue',
+}
+
+/** The image's runtime user must not be root (Dockerfiles set USER or use a non-root base image). */
+async function assertNonRoot(tag: string, root: string): Promise<void> {
+  const { code, user } = await new Promise<{ code: number | null; user: string }>((done, fail) => {
+    const p = spawn('docker', ['image', 'inspect', '-f', '{{.Config.User}}', tag], {
+      cwd: root,
+      stdio: ['ignore', 'pipe', 'inherit'],
+    })
+    let out = ''
+    p.stdout.on('data', (d) => {
+      out += d
+    })
+    p.on('error', fail)
+    p.on('close', (c) => done({ code: c, user: out.trim() }))
+  })
+  if (code !== 0) throw new Error(`docker image inspect ${tag} failed (exit ${code})`)
+  if (runsAsRoot(user)) {
+    throw new Error(`${tag} runs as root (User="${user}")`)
+  }
+}
+
 function parseArgs(argv: string[]): {
   label: string
   load: () => Promise<StackConfig>
   compose: boolean
   dev: boolean
   keep: boolean
+  docker: boolean
 } {
+  const docker = !argv.includes('--no-docker')
   const compose = argv.includes('--compose')
   const dev = argv.includes('--dev')
   const keep = argv.includes('--keep')
@@ -250,15 +284,23 @@ function parseArgs(argv: string[]): {
       compose,
       dev,
       keep,
+      docker,
     }
   }
   const id = argv.find((a) => !a.startsWith('--'))
   const combo = id ? findCombo(id) : undefined
   if (!combo)
     throw new Error(
-      `Usage: e2e.ts <comboId | --fixture path> [--dev] [--compose] [--keep] (got "${id ?? ''}")`,
+      `Usage: e2e.ts <comboId | --fixture path> [--dev] [--compose] [--keep] [--no-docker] (got "${id ?? ''}")`,
     )
-  return { label: combo.id, load: async () => structuredClone(combo.stack), compose, dev, keep }
+  return {
+    label: combo.id,
+    load: async () => structuredClone(combo.stack),
+    compose,
+    dev,
+    keep,
+    docker,
+  }
 }
 
 async function main(): Promise<number> {
@@ -267,6 +309,7 @@ async function main(): Promise<number> {
   const config = await args.load()
   const { stack, errors } = validateStack(config, reg)
   if (errors.length) throw new Error(`Invalid stack: ${errors.map((e) => e.message).join('; ')}`)
+  if (args.compose && !args.docker) throw new Error('--compose needs docker; drop --no-docker')
 
   const tmp = await mkdtemp(join(tmpdir(), 'octorepo-e2e-'))
   const root = join(tmp, stack.name)
@@ -299,11 +342,12 @@ async function main(): Promise<number> {
     for (const task of ['lint', 'typecheck', 'test', 'build']) {
       await step(task, () => sh('pnpm', [task], root))
     }
-    for (const app of stack.apps) {
+    for (const app of args.docker ? stack.apps : []) {
       const tag = `${project}-${app.name}`
       await step(`docker build ${app.name}`, async () => {
         await sh('docker', ['build', '-f', `apps/${app.name}/Dockerfile`, '-t', tag, '.'], root)
         images.push(tag)
+        await assertNonRoot(tag, root)
       })
     }
 
@@ -327,7 +371,7 @@ async function main(): Promise<number> {
       }
       for (const fe of stack.apps.filter((a) => a.kind === 'frontend')) {
         const uses = backends.filter((b) => fe.uses?.includes(b.name))
-        if (fe.framework === 'next') {
+        if (defaultRegistry().framework(fe.framework, 'frontend')?.rendering === 'ssr') {
           await check(`page ${fe.name}`, () =>
             eventually(async () => {
               const res = await fetchText(`http://localhost:${fe.port}/`)

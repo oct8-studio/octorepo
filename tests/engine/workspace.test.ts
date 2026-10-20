@@ -55,8 +55,12 @@ describe('workspaceFiles', () => {
     expect(tree['.dockerignore']).toContain('**/node_modules')
     // Local .env files hold dev settings and must never be baked into images.
     expect(tree['.dockerignore']?.split('\n')).toEqual(
-      expect.arrayContaining(['.env', '**/.env', '**/.env.local']),
+      expect.arrayContaining(['.env', '**/.env', '**/.env.local', '**/.env.*']),
     )
+    // ...but .env.example (documentation only) stays in the build context; the negation comes last.
+    const lines = tree['.dockerignore']?.trim().split('\n') ?? []
+    expect(lines.at(-1)).toBe('!**/.env.example')
+    expect(lines.indexOf('**/.env.*')).toBeLessThan(lines.indexOf('!**/.env.example'))
     expect(tree['README.md']).toContain('pnpm --filter @acme/api dev')
     const root = JSON.parse(tree['package.json'] as string)
     expect(root.private).toBe(true)
@@ -65,6 +69,40 @@ describe('workspaceFiles', () => {
     expect(tree['.github/workflows/ci.yml']).toContain('pnpm install')
     expect(tree['README.md']).toContain('4000')
     expect(tree['README.md']).toContain('gitignored copy of\n`.env.example`')
-    expect(JSON.parse(tree['biome.json'] as string).files.includes).toContain('!**/openapi.json')
+    const biome = JSON.parse(tree['biome.json'] as string)
+    expect(biome.files.includes).toContain('!**/openapi.json')
+    // Every framework's build/generated output is ignored at the root, so apps need no nested config.
+    for (const dir of [
+      '.output',
+      '.nuxt',
+      '.svelte-kit',
+      '.astro',
+      '.react-router',
+      '.tanstack',
+      '.nitro',
+      '.turbo',
+    ]) {
+      expect(biome.files.includes).toContain(`!**/${dir}`)
+      expect(tree['.gitignore']?.split('\n')).toContain(dir)
+    }
+    // `build` is anchored to apps so unrelated build dirs (scripts, docs) stay tracked and linted.
+    expect(biome.files.includes).toContain('!apps/*/build')
+    expect(biome.files.includes).not.toContain('!**/build')
+    expect(tree['.gitignore']?.split('\n')).toContain('apps/*/build')
+    expect(tree['.gitignore']?.split('\n')).not.toContain('build')
+    expect(biome.files.includes).toContain('!**/routeTree.gen.ts')
+    expect(biome.html).toEqual({ experimentalFullSupportEnabled: true })
+    for (const dir of [
+      '.output',
+      '.nuxt',
+      '.svelte-kit',
+      '.astro',
+      '.react-router',
+      'build',
+      '.solid',
+      '.data',
+    ]) {
+      expect(tree['.dockerignore']?.split('\n')).toContain(`**/${dir}`)
+    }
   })
 })

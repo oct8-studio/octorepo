@@ -1,18 +1,39 @@
+import { uiPackageFiles } from '../engine/ui'
+import { uiSolidPackageFiles } from '../engine/ui-solid'
+import { uiSveltePackageFiles } from '../engine/ui-svelte'
+import { uiVuePackageFiles } from '../engine/ui-vue'
 import type { AppKind, MonorepoTool } from '../model/stack'
 import { expressPlugin } from './backend/express'
+import { fastifyPlugin } from './backend/fastify'
+import { honoPlugin } from './backend/hono'
+import { koaPlugin } from './backend/koa'
 import { nestPlugin } from './backend/nest'
+import { astroPlugin } from './frontend/astro'
 import { nextPlugin } from './frontend/next'
+import { nuxtPlugin } from './frontend/nuxt'
+import { reactRouterPlugin } from './frontend/react-router'
 import { reactVitePlugin } from './frontend/react-vite'
+import { solidStartPlugin } from './frontend/solid-start'
+import { sveltekitPlugin } from './frontend/sveltekit'
+import { tanstackStartPlugin } from './frontend/tanstack-start'
+import { vueVitePlugin } from './frontend/vue-vite'
 import { nxPlugin } from './monorepo/nx'
 import { turboPlugin } from './monorepo/turbo'
 import { postgresPlugin } from './service/postgres'
 import { redisPlugin } from './service/redis'
-import type { FrameworkPlugin, MonorepoPlugin, ServicePlugin } from './types'
+import type {
+  FrameworkPlugin,
+  MonorepoPlugin,
+  ServicePlugin,
+  UiFamily,
+  UiPackageGenerator,
+} from './types'
 
 export class Registry {
   readonly monorepo = new Map<MonorepoTool, MonorepoPlugin>()
   readonly frameworks = new Map<string, FrameworkPlugin>()
   readonly services = new Map<string, ServicePlugin>()
+  readonly uiPackages = new Map<UiFamily, UiPackageGenerator>()
 
   registerMonorepo(plugin: MonorepoPlugin): this {
     this.monorepo.set(plugin.id, plugin)
@@ -29,6 +50,11 @@ export class Registry {
     return this
   }
 
+  registerUi(family: UiFamily, gen: UiPackageGenerator): this {
+    this.uiPackages.set(family, gen)
+    return this
+  }
+
   monorepoTool(id: MonorepoTool): MonorepoPlugin | undefined {
     return this.monorepo.get(id)
   }
@@ -40,6 +66,10 @@ export class Registry {
 
   service(id: string): ServicePlugin | undefined {
     return this.services.get(id)
+  }
+
+  ui(family: UiFamily): UiPackageGenerator | undefined {
+    return this.uiPackages.get(family)
   }
 
   frameworksOf(kind: AppKind): FrameworkPlugin[] {
@@ -54,8 +84,22 @@ export function defaultRegistry(): Registry {
     .registerMonorepo(nxPlugin)
     .registerFramework(expressPlugin)
     .registerFramework(nestPlugin)
+    .registerFramework(fastifyPlugin)
+    .registerFramework(honoPlugin)
+    .registerFramework(koaPlugin)
     .registerFramework(reactVitePlugin)
     .registerFramework(nextPlugin)
+    .registerFramework(vueVitePlugin)
+    .registerFramework(nuxtPlugin)
+    .registerFramework(sveltekitPlugin)
+    .registerFramework(astroPlugin)
+    .registerFramework(tanstackStartPlugin)
+    .registerFramework(reactRouterPlugin)
+    .registerFramework(solidStartPlugin)
     .registerService(postgresPlugin)
     .registerService(redisPlugin)
+    .registerUi('react', (ctx) => uiPackageFiles(ctx, 'react'))
+    .registerUi('vue', uiVuePackageFiles)
+    .registerUi('svelte', uiSveltePackageFiles)
+    .registerUi('solid', uiSolidPackageFiles)
 }

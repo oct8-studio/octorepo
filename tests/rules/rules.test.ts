@@ -78,6 +78,19 @@ describe('validateStack', () => {
     expect(errs[1]?.message).toContain('@acme/ui-react')
   })
 
+  it('rejects app names that collide with any shared UI package', () => {
+    for (const name of ['ui-react', 'ui-vue', 'ui-svelte', 'ui-solid']) {
+      const r = validateStack(stack([fe(name)]), reg)
+      const errs = r.errors.filter((e) => e.rule === 'app-name-valid')
+      expect(
+        errs.map((e) => e.app),
+        name,
+      ).toEqual([name])
+      expect(errs[0]?.message).toContain(`collides with the generated package @acme/${name}`)
+      expect(appNameProblem({ name, kind: 'frontend' }, [])).toContain('collides')
+    }
+  })
+
   it('appNameProblem applies the same rules to one new app', () => {
     expect(appNameProblem({ name: 'Api', kind: 'backend' }, [])).toContain('must match')
     expect(appNameProblem({ name: 'types', kind: 'backend' }, [])).toContain('reserved')

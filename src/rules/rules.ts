@@ -33,7 +33,12 @@ type NamedApp = Pick<AppSpec, 'name' | 'kind'>
 
 /** Workspace packages the generator creates next to the apps (unscoped name → what it is). */
 function generatedPackages(apps: NamedApp[]): Map<string, string> {
-  const pkgs = new Map([['ui-react', 'shared React UI package']])
+  const pkgs = new Map([
+    ['ui-react', 'shared React UI package'],
+    ['ui-vue', 'shared Vue UI package'],
+    ['ui-svelte', 'shared Svelte UI package'],
+    ['ui-solid', 'shared Solid UI package'],
+  ])
   for (const a of apps) {
     if (a.kind === 'backend') pkgs.set(`${a.name}-client`, `typed client of backend "${a.name}"`)
   }

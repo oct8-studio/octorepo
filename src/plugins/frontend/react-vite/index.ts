@@ -39,8 +39,10 @@ export function App() {
   const loaders = backends
     .map(
       (b) => `async function load${pascalCase(b.name)}(): Promise<string> {
-  const { data } = await ${clientVar(b)}.GET('/hello')
-  return data?.message ?? 'No response'
+  // Bounded, so a hanging backend shows "unreachable" instead of loading forever.
+  const signal = AbortSignal.timeout(3000)
+  const { data } = await ${clientVar(b)}.GET('/hello', { signal })
+  return data?.message ?? 'Backend unreachable'
 }`,
     )
     .join('\n\n')
@@ -180,7 +182,8 @@ function dockerfile(ctx: AppContext): string {
     .join('')
   return `${PNPM_BUILD_STAGE}${args}RUN pnpm --filter ${pkg}... build
 
-FROM nginx:alpine AS runtime
+# Official non-root nginx build (runs as uid 101); it listens on the app port from nginx.conf.
+FROM nginxinc/nginx-unprivileged:alpine AS runtime
 COPY apps/${ctx.app.name}/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /repo/apps/${ctx.app.name}/dist /usr/share/nginx/html
 EXPOSE ${ctx.app.port}
@@ -193,6 +196,8 @@ export const reactVitePlugin: FrameworkPlugin = {
   label: 'React + Vite',
   apiStyles: [],
   defaultPort: 3000,
+  uiFamily: 'react',
+  rendering: 'spa',
   generate,
   dockerfile,
 }

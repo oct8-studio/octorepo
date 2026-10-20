@@ -64,8 +64,8 @@ export function composeFiles(ctx: ProjectContext, reg: Registry): FileTree {
       }
     } else {
       const backends = stack.apps.filter((b) => app.uses?.includes(b.name))
-      // Vite bakes backend URLs into the bundle at build time (Dockerfile ARGs); Next reads them at runtime.
-      if (plugin?.id === 'next') {
+      // SPAs bake backend URLs into the bundle at build time (Dockerfile ARGs); SSR apps read them at runtime.
+      if (plugin?.rendering === 'ssr') {
         entry.environment = {
           PORT: String(p),
           ...Object.fromEntries(

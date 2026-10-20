@@ -1,0 +1,18 @@
+{
+  "name": "families",
+  "monorepoTool": "turbo",
+  "apps": [
+    { "name": "shop", "kind": "frontend", "framework": "nuxt", "uses": ["catalog"] },
+    { "name": "blog", "kind": "frontend", "framework": "astro", "uses": ["catalog"] },
+    {
+      "name": "admin",
+      "kind": "frontend",
+      "framework": "sveltekit",
+      "uses": ["catalog", "orders"]
+    },
+    { "name": "portal", "kind": "frontend", "framework": "solid-start", "uses": ["orders"] },
+    { "name": "catalog", "kind": "backend", "framework": "fastify" },
+    { "name": "orders", "kind": "backend", "framework": "hono" }
+  ],
+  "services": ["postgres"]
+}

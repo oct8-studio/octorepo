@@ -33,6 +33,57 @@ export const VERSIONS: Readonly<Record<string, string>> = {
   jsdom: '30.1.3',
   '@testing-library/react': '16.3.3',
   '@testing-library/dom': '10.4.2',
+  // Plan 2 backends
+  fastify: '5.12.7',
+  '@fastify/cors': '11.3.1',
+  '@fastify/swagger': '9.9.2',
+  hono: '4.13.13',
+  '@hono/node-server': '2.1.5',
+  '@hono/zod-openapi': '1.6.3',
+  koa: '3.2.1',
+  '@koa/router': '15.7.0',
+  '@types/koa': '3.0.3',
+  // A deprecated stub: @koa/router 15 ships its own types.
+  '@types/koa__router': '15.0.0',
+  // Plan 2 frontends
+  vue: '3.5.44',
+  // Peer of @vue/test-utils; kept in lockstep with vue.
+  '@vue/compiler-dom': '3.5.44',
+  '@vitejs/plugin-vue': '6.0.10',
+  'vue-tsc': '3.3.13',
+  '@vue/test-utils': '2.5.1',
+  // Nuxt's starter lists vue-router; nuxt also peers on rolldown ~1.2 (the version vite 8.3 uses).
+  'vue-router': '5.4.0',
+  nuxt: '4.6.2',
+  rolldown: '1.2.14',
+  svelte: '5.57.2',
+  '@sveltejs/kit': '3.1.0',
+  '@sveltejs/adapter-node': '6.0.0',
+  '@sveltejs/vite-plugin-svelte': '7.3.1',
+  '@sveltejs/package': '3.0.1',
+  'svelte-check': '4.7.7',
+  '@testing-library/svelte': '5.4.2',
+  astro: '7.4.1',
+  '@astrojs/node': '11.1.9',
+  '@astrojs/check': '0.9.11',
+  '@tanstack/react-start': '1.169.3',
+  '@tanstack/react-router': '1.170.45',
+  // TanStack Start and SolidStart 2 production servers (`nitro/vite`, `.output/server/index.mjs`).
+  // nitro 3 has no stable release yet; this is its npm `latest` tag.
+  nitro: '3.0.260903-beta',
+  'react-router': '8.5.0',
+  '@react-router/dev': '8.5.0',
+  '@react-router/node': '8.5.0',
+  '@react-router/serve': '8.5.0',
+  isbot: '5.2.2',
+  'solid-js': '1.9.17',
+  '@solidjs/start': '2.0.6',
+  '@solidjs/router': '1.0.0',
+  '@solidjs/meta': '0.29.4',
+  // SolidStart 1 only; SolidStart 2 builds with Vite + nitro and does not need it.
+  vinxi: '0.5.11',
+  'vite-plugin-solid': '2.11.14',
+  '@solidjs/testing-library': '0.8.10',
 }
 
 /** Official Docker image major tags for compose services (`<image>:<major>-alpine`). */

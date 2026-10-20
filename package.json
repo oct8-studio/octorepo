@@ -1,21 +1,29 @@
 {
   "name": "@oct8/octorepo",
-  "version": "0.1.0",
-  "description": "Scaffold multi-app Node/TypeScript monorepos (Nx or Turborepo) with frontends, backends and Docker Compose",
+  "version": "0.2.0",
+  "description": "Scaffold multi-app Node/TypeScript monorepos (Turborepo or Nx): Next.js, Nuxt, SvelteKit, Astro, Vue, React frontends; NestJS, Express, Fastify, Hono, Koa backends; Docker Compose; and an MCP server for AI agents",
   "keywords": [
     "monorepo",
-    "scaffold",
-    "cli",
     "turborepo",
     "nx",
-    "pnpm",
+    "scaffold",
+    "cli",
     "nextjs",
     "nestjs",
+    "nuxt",
+    "sveltekit",
+    "astro",
+    "vue",
+    "hono",
+    "fastify",
+    "mcp",
+    "docker",
+    "pnpm",
+    "typescript",
+    "generator",
     "express",
     "vite",
-    "docker-compose",
-    "typescript",
-    "generator"
+    "docker-compose"
   ],
   "homepage": "https://github.com/oct8-studio/octorepo#readme",
   "bugs": {
@@ -46,6 +54,7 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.8.1",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "commander": "^15.0.0",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"

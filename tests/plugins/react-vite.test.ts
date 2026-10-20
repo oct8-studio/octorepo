@@ -32,7 +32,7 @@ describe('reactVitePlugin', () => {
     expect(pkg.dependencies['@acme/api-client']).toBe('workspace:*')
     expect(pkg.dependencies['@acme/ui-react']).toBe('workspace:*')
     expect(pkg.files).toEqual(['dist'])
-    expect(tree['apps/web/src/App.tsx']).toContain("apiClient.GET('/hello')")
+    expect(tree['apps/web/src/App.tsx']).toContain("apiClient.GET('/hello', { signal })")
     expect(tree['apps/web/src/generated/api.ts']).toContain('as createApiClient }')
     expect(tree['apps/web/src/generated/api.ts']).toContain(
       "const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'",
@@ -71,7 +71,7 @@ describe('reactVitePlugin', () => {
       'COPY package.json ./\nRUN pnpm --version\nCOPY . .\nRUN pnpm install --frozen-lockfile',
     )
     expect(d).toContain('pnpm --filter @acme/web... build')
-    expect(d).toContain('FROM nginx:alpine')
+    expect(d).toContain('FROM nginxinc/nginx-unprivileged:alpine')
     expect(d).toContain('ARG VITE_API_URL=http://localhost:4000')
   })
 })

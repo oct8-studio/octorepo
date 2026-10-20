@@ -10,7 +10,10 @@ export const turboPlugin: MonorepoPlugin & { ciBuildCommand: string } = {
       'package.json': json({
         scripts: {
           build: 'turbo run build',
-          dev: 'turbo run dev',
+          // Every app and package watcher is a persistent task; turbo refuses to start when they
+          // outnumber its default concurrency of 10. Fixed (not per-repo) so `add app` never
+          // leaves it stale, and scoped to dev so `build` keeps the default parallelism.
+          dev: 'turbo run dev --concurrency=64',
           lint: 'turbo run lint',
           typecheck: 'turbo run typecheck',
           test: 'turbo run test',
@@ -22,7 +25,16 @@ export const turboPlugin: MonorepoPlugin & { ciBuildCommand: string } = {
         tasks: {
           build: {
             dependsOn: ['^build'],
-            outputs: ['dist/**', 'openapi.json', '.next/**', '!.next/cache/**'],
+            // dist (Vite, Astro, React Router, packages), .next, .output (Nuxt, TanStack Start,
+            // SolidStart), build (SvelteKit).
+            outputs: [
+              'dist/**',
+              'openapi.json',
+              '.next/**',
+              '!.next/cache/**',
+              '.output/**',
+              'build/**',
+            ],
           },
           typecheck: { dependsOn: ['build'] },
           test: { dependsOn: ['build'] },
