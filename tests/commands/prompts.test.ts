@@ -32,7 +32,7 @@ function scriptAnswers() {
     .mockResolvedValueOnce('next')
     .mockResolvedValueOnce('done')
   clack.multiselect.mockResolvedValueOnce(['api']).mockResolvedValueOnce([])
-  clack.confirm.mockResolvedValueOnce(true)
+  clack.confirm.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
 }
 
 describe('promptForStack', () => {
@@ -62,7 +62,7 @@ describe('promptForStack', () => {
       .mockResolvedValueOnce('drizzle')
     clack.text.mockResolvedValueOnce('acme')
     clack.multiselect.mockResolvedValueOnce(['postgres', 'valkey', 'mailpit'])
-    clack.confirm.mockResolvedValueOnce(true)
+    clack.confirm.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
     const stack = await promptForStack(defaultRegistry())
     expect(clack.select.mock.calls[0]?.[0].message).toBe('Start from a preset?')
     expect(stack.preset).toBe('saas')
@@ -88,13 +88,35 @@ describe('promptForStack', () => {
     expect(validate('api')).toContain('duplicate')
   })
 
+  it('asks about kbee (default no) and records a yes', async () => {
+    scriptAnswers()
+    clack.confirm.mockReset().mockResolvedValueOnce(true).mockResolvedValueOnce(true)
+    const stack = await promptForStack(defaultRegistry())
+    expect(clack.confirm.mock.calls[0]?.[0]).toMatchObject({
+      message: 'Set up kbee (AI knowledge base for your agents)?',
+      initialValue: false,
+    })
+    expect(stack.kbee).toBe(true)
+    expect(clack.note.mock.calls[0]?.[0]).toContain('kbee: yes')
+  })
+
+  it('skips the kbee question with --kbee (yes) or --no-git (no)', async () => {
+    scriptAnswers()
+    clack.confirm.mockReset().mockResolvedValueOnce(true)
+    expect((await promptForStack(defaultRegistry(), { kbee: true })).kbee).toBe(true)
+    scriptAnswers()
+    clack.confirm.mockReset().mockResolvedValueOnce(true)
+    expect((await promptForStack(defaultRegistry(), { git: false })).kbee).toBeUndefined()
+    expect(clack.confirm).toHaveBeenCalledTimes(1)
+  })
+
   it('prints the cancel message once and throws a silent CancelledError', async () => {
     clack.select.mockResolvedValueOnce('none')
     clack.text.mockResolvedValueOnce(Symbol('cancel'))
     const err = await promptForStack(defaultRegistry()).catch((e) => e)
     expect(err).toBeInstanceOf(CancelledError)
     expect(clack.cancel).toHaveBeenCalledTimes(1)
-    expect(formatError(err, false)).toEqual({ text: '', exitCode: 1 })
+    expect(formatError(err, false)).toEqual({ text: '', exitCode: 0 })
   })
 })
 

@@ -12,6 +12,7 @@ describe('listOptions', () => {
     expect(o.services.map((s) => s.id)).toContain('postgres')
     expect(o.orms.map((x) => x.id)).toEqual(['drizzle', 'prisma'])
     expect(o.presets.map((p) => p.id)).toEqual(['saas', 'api-platform'])
+    expect(o.integrations.map((i) => i.id)).toEqual(['kbee'])
   })
 
   it('carries what an agent needs to pick a framework', () => {

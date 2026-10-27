@@ -133,6 +133,21 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm tsx scripts/e2e.ts --fixture fixtures/${{ matrix.fixture }}.json --dev --compose
 
+  # --kbee: kb/manifest.json passes kbee's rules (and the real kbee-tool when the skills install
+  # reaches GitHub), and the installed skills don't break lint. No compose: kbee adds no services.
+  fixture-kbee:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tsx scripts/e2e.ts --fixture fixtures/kbee.json --dev
+
   # All six compose services next to one backend: every container must report healthy.
   fixture-services:
     needs: unit

@@ -7,10 +7,14 @@ export class CliError extends Error {
   }
 }
 
-/** The user cancelled a prompt. The prompt already said so, so the CLI prints nothing more. */
+/**
+ * The user cancelled a prompt. The prompt already said so, so the CLI prints nothing more and
+ * exits 0: cancelling is a choice, not a failure (npm/pnpm exec then add no error of their own).
+ */
 export class CancelledError extends CliError {
   constructor() {
     super('Cancelled')
+    this.exitCode = 0
     this.name = 'CancelledError'
   }
 }

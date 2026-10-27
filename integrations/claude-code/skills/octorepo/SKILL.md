@@ -43,8 +43,8 @@ Relative `dir`/`cwd` paths resolve against the directory the server was started 
    - For a database, set `"orm": "drizzle"` or `"prisma"`; `postgres` is added if missing.
    - If a preset from `list_options` fits, pass it as `create`'s `preset` input (not inside `stack`); `stack.apps` then only lists extra apps, and `monorepoTool` defaults to `turbo`.
 3. Call `validate_stack` with it. Fix every error and call it again until `errors` is empty. Tell the user about `fixes` and `warnings`.
-4. Call `create` with `{ dir, stack }` (plus `preset` if you chose one). `name` defaults to the directory name. `install` and `git` default to `true`; pass `false` only when the user wants to skip them.
-5. Report `root` and the `manual` steps from the result, then `pnpm dev` to start everything.
+4. Call `create` with `{ dir, stack }` (plus `preset` if you chose one). `name` defaults to the directory name. `install` and `git` default to `true`; pass `false` only when the user wants to skip them. Pass `kbee: true` when the user wants a kbee knowledge base for their agents (needs `git`).
+5. Report `root` and the `manual` steps from the result, then `pnpm dev` to start everything. With kbee, add: make the first commit, then run `/kbee init`.
 
 If `create` returns an error (for example the directory is not empty), show the message to the user and ask; do not delete or overwrite their files.
 

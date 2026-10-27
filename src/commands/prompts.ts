@@ -51,7 +51,7 @@ function list(title: string, issues: Issue[]): string[] {
 /** Interactive create flow (spec §5.1): name, tool, apps loop, frontend links, services, review. */
 export async function promptForStack(
   reg: Registry,
-  opts: { defaultName?: string } = {},
+  opts: { defaultName?: string; kbee?: boolean; git?: boolean } = {},
 ): Promise<StackConfig> {
   intro(CLI_NAME)
   // First question: a preset pre-fills apps, services and ORM; everything stays editable below.
@@ -168,8 +168,20 @@ export async function promptForStack(
         )
       : 'none'
 
+  // kbee's in-repo KB needs git, so with --no-git the question isn't asked.
+  const kbee =
+    opts.kbee ||
+    (opts.git !== false &&
+      answer(
+        await confirm({
+          message: 'Set up kbee (AI knowledge base for your agents)?',
+          initialValue: false,
+        }),
+      ))
+
   const stack: StackConfig = { name, monorepoTool, packageManager: 'pnpm', apps, services }
   if (orm !== 'none') stack.orm = orm as OrmId
+  if (kbee) stack.kbee = true
   if (preset) stack.preset = preset.id
   const v = validateStack(stack, reg)
   note(
@@ -178,6 +190,7 @@ export async function promptForStack(
       ...v.stack.apps.map((a) => `  ${describeApp(a)}`),
       `services: ${v.stack.services.length ? v.stack.services.join(', ') : 'none'}`,
       `orm: ${stack.orm ?? 'none'}`,
+      `kbee: ${kbee ? 'yes' : 'no'}`,
       ...list('Auto-fixes', v.fixes),
       ...list('Warnings', v.warnings),
       ...list('Errors', v.errors),

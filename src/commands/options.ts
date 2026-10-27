@@ -17,6 +17,8 @@ export interface OptionsList {
   services: Option[]
   orms: Option[]
   presets: { id: string; description: string }[]
+  /** Opt-in extras for `create` (`--kbee`, MCP `create.kbee`). */
+  integrations: Option[]
 }
 
 export function listOptions(reg: Registry): OptionsList {
@@ -36,6 +38,7 @@ export function listOptions(reg: Registry): OptionsList {
     services: [...reg.services.values()].map(({ id, label }) => ({ id, label })),
     orms: [...reg.orms.values()].map(({ id, label }) => ({ id, label })),
     presets: PRESETS.map(({ id, description }) => ({ id, description })),
+    integrations: [{ id: 'kbee', label: 'kbee AI knowledge base (in-repo kb/ + agent skills)' }],
   }
 }
 
@@ -49,6 +52,7 @@ export function formatOptions(o: OptionsList): string {
     ['Services', ids(o.services)],
     ['ORMs', ids(o.orms)],
     ['Presets', ids(o.presets)],
+    ['Integrations', ids(o.integrations)],
   ]
   const width = Math.max(...rows.map(([k]) => k.length))
   return rows.map(([k, v]) => `${k.padEnd(width)}  ${v}`).join('\n')

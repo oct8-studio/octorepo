@@ -105,3 +105,12 @@ export const IMAGES = {
   // SeaweedFS publishes no major-version tags, only exact releases.
   seaweedfs: '4.48',
 } as const
+
+/**
+ * kbee rules version a new `kb/manifest.json` starts at. Bump when kbee's
+ * `shared/references/rules-changelog.md` (github.com/oct8-studio/kbee) adds a version.
+ */
+export const KBEE_RULES_VERSION = 2
+
+/** The `skills` CLI (npx) that installs the kbee skills into a generated repo. */
+export const KBEE_SKILLS_CLI = 'skills@1.7.4'

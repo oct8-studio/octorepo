@@ -1,0 +1,11 @@
+{
+  "name": "kbee",
+  "monorepoTool": "turbo",
+  "apps": [
+    { "name": "web", "kind": "frontend", "framework": "next", "uses": ["api"] },
+    { "name": "api", "kind": "backend", "framework": "nest" }
+  ],
+  "services": ["postgres"],
+  "orm": "drizzle",
+  "kbee": true
+}

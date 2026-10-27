@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { readManifest, runAddApp } from '../../src/commands/add-app'
+import { runAddService } from '../../src/commands/add-service'
 import { runCreate } from '../../src/commands/create'
 import { refreshAgentsSection } from '../../src/engine/agents'
 import { CliError, ManifestError } from '../../src/model/errors'
@@ -446,5 +447,75 @@ describe('runAddApp', () => {
       for (const f of files) expect(r.written).not.toContain(join(created.root, f))
       await rm(fresh, { recursive: true, force: true })
     })
+  })
+})
+
+describe('runAddApp with kbee', () => {
+  let kroot: string
+  beforeEach(async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'octo-add-kbee-'))
+    const r = await runCreate(
+      {
+        config: { ...config, kbee: true },
+        cwd,
+        dir: 'repo',
+        install: false,
+        git: true,
+        force: false,
+        json: true,
+        yes: true,
+      },
+      reg,
+    )
+    kroot = r.root
+  })
+  const kb = async () => JSON.parse(await read(kroot, 'kb/manifest.json'))
+
+  it('appends the new app; existing entries, their sync state and other keys stay', async () => {
+    const m = await kb()
+    m.mode = 'pr'
+    m.custom = { keep: true }
+    m.repos[0].defaultBranch = 'trunk'
+    m.repos[0].syncedAt = '2026-10-27T00:00:00Z'
+    m.repos = m.repos.filter((r: { name: string }) => r.name !== 'web')
+    await writeFile(join(kroot, 'kb/manifest.json'), `${JSON.stringify(m, null, 2)}\n`)
+
+    const r = await runAddApp(
+      { cwd: kroot, json: true, app: { name: 'billing', kind: 'backend', framework: 'express' } },
+      reg,
+    )
+    expect(r.warnings).toEqual([])
+    const after = await kb()
+    expect(after.mode).toBe('pr')
+    expect(after.custom).toEqual({ keep: true })
+    expect(after.repos.slice(0, -2)).toEqual(m.repos)
+    // `web` was removed by the user and comes back (octorepo only adds); new ones use the repo's branch.
+    expect(after.repos.slice(-2)).toEqual([
+      expect.objectContaining({
+        name: 'billing',
+        pathHint: '../apps/billing',
+        defaultBranch: 'trunk',
+      }),
+      expect.objectContaining({ name: 'web', pathHint: '../apps/web' }),
+    ])
+    expect(JSON.parse(await read(kroot, '.octorepo.json')).kbee).toBe(true)
+    expect(await read(kroot, 'AGENTS.md')).toContain('kbee-kb-path: kb')
+  })
+
+  it('a missing kb/manifest.json is a warning, not a rewrite', async () => {
+    await rm(join(kroot, 'kb/manifest.json'))
+    const r = await runAddApp(
+      { cwd: kroot, json: true, app: { name: 'billing', kind: 'backend', framework: 'express' } },
+      reg,
+    )
+    expect(r.warnings.map((w) => w.message).join()).toContain('kb/manifest.json not found')
+    expect(existsSync(join(kroot, 'kb/manifest.json'))).toBe(false)
+  })
+
+  it('add service keeps kbee and leaves the entries alone', async () => {
+    const before = await read(kroot, 'kb/manifest.json')
+    await runAddService({ cwd: kroot, json: true, service: 'redis' }, reg)
+    expect(await read(kroot, 'kb/manifest.json')).toBe(before)
+    expect(JSON.parse(await read(kroot, '.octorepo.json')).kbee).toBe(true)
   })
 })

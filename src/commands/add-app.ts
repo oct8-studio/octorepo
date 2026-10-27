@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { refreshAgentsSection } from '../engine/agents'
 import { generateProject } from '../engine/generate'
+import { KBEE_MANIFEST, mergeKbeeManifest } from '../engine/kbee'
 import { type FileTree, json, mergeJson } from '../engine/tree'
 import { writeTree } from '../engine/write'
 import { MANIFEST_FILE } from '../meta'
@@ -99,6 +100,45 @@ async function mergeWithDisk(root: string, path: string, content: string): Promi
   return json(mergeJson(JSON.parse(content), parsed))
 }
 
+/**
+ * `kb/manifest.json` with entries for the new app (and `db` when the ORM is new) appended. Only
+ * missing entries are added; a missing or unreadable manifest is a warning, never a rewrite.
+ */
+async function syncKbeeManifest(
+  root: string,
+  stack: StackConfig,
+): Promise<{ tree?: FileTree; warnings: Issue[] }> {
+  let disk: string
+  try {
+    disk = await readFile(join(root, KBEE_MANIFEST), 'utf8')
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e
+    return {
+      warnings: [
+        {
+          rule: 'kbee',
+          level: 'warning',
+          message: `${KBEE_MANIFEST} not found, so no kbee entry was added for the new app; ask your agent to add it to the KB with kbee`,
+        },
+      ],
+    }
+  }
+  try {
+    const next = mergeKbeeManifest(disk, stack)
+    return { tree: next === undefined ? {} : { [KBEE_MANIFEST]: next }, warnings: [] }
+  } catch {
+    return {
+      warnings: [
+        {
+          rule: 'kbee',
+          level: 'warning',
+          message: `${KBEE_MANIFEST} is not a JSON object, so it was not updated; fix it, then add the new app's entry`,
+        },
+      ],
+    }
+  }
+}
+
 /** validate → generate → filter to new-app + tool-owned paths → write. Nothing is written on errors. */
 export async function runAddApp(opts: AddAppOptions, reg: Registry): Promise<AddAppResult> {
   const current = await readManifest(opts.cwd)
@@ -110,6 +150,7 @@ export async function runAddApp(opts: AddAppOptions, reg: Registry): Promise<Add
     services: current.services,
     ...(current.orm ? { orm: current.orm } : {}),
     ...(current.preset ? { preset: current.preset } : {}),
+    ...(current.kbee ? { kbee: true } : {}),
   }
   const { stack, errors, warnings, fixes } = validateStack(config, reg)
   if (errors.length) {
@@ -134,6 +175,8 @@ export async function runAddApp(opts: AddAppOptions, reg: Registry): Promise<Add
   // Repos from older versions miss newer ignore entries (e.g. a new framework's build dir).
   const root = await patchRootFiles(opts.cwd, generated)
   Object.assign(tree, root.tree)
+  const kbee = stack.kbee ? await syncKbeeManifest(opts.cwd, stack) : { warnings: [] }
+  Object.assign(tree, kbee.tree)
   const written = await writeTree(opts.cwd, tree, { mode: 'update' })
   written.push(...(await refreshAgentsSection(opts.cwd, stack)))
 
@@ -143,7 +186,7 @@ export async function runAddApp(opts: AddAppOptions, reg: Registry): Promise<Add
       : await runPostSteps(opts.cwd, { install: opts.install, git: false })
   return {
     written,
-    warnings: [...warnings, ...root.warnings],
+    warnings: [...warnings, ...root.warnings, ...kbee.warnings],
     fixes,
     ...(manual ? { manual } : {}),
   }
