@@ -4,6 +4,25 @@ All notable changes to octorepo are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## 0.4.0 (Unreleased)
+
+### Added
+
+- `create --kbee`: sets up a [kbee](https://github.com/oct8-studio/kbee) knowledge base in the
+  generated repo: `kb/manifest.json` with one entry per package (types, db, backends, frontends),
+  the kbee skills for Claude Code and Codex (`npx skills add oct8-studio/kbee`, a manual step when
+  offline or with `--no-install`), and a kbee pointer plus contract hints in `AGENTS.md`. Next
+  steps end with the first commit and `/kbee init`. Also an interactive question (default no), the
+  MCP `create` input `kbee`, and `kbee: true` in `.octorepo.json`. Needs git.
+- `add app` appends the new app's entry to `kb/manifest.json` in repos with kbee; existing entries
+  are never changed or removed.
+- `options` lists `integrations` (`kbee`).
+
+### Changed
+
+- Generated `biome.json` skips `.agents/skills`, `.claude/skills` and `skills-lock.json`, so
+  installed agent skills don't fail `pnpm lint` (`add` adds the exclusions to older repos).
+
 ## 0.3.1
 
 Republish of 0.3.0 (the 0.3.0 staged publish could not be completed on npm). No code changes.

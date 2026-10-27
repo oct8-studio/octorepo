@@ -22,6 +22,7 @@ interface CreateFlags {
   service: string[]
   orm?: string
   preset?: string
+  kbee?: boolean
   install: boolean
   git: boolean
   force?: boolean
@@ -50,6 +51,7 @@ async function stackFromFlags(dir: string | undefined, flags: CreateFlags): Prom
     apps: [...(base.apps ?? []), ...flags.app.map(parseAppFlag)],
     services: [...(base.services ?? []), ...flags.service],
     ...((flags.orm ?? base.orm) ? { orm: flags.orm ?? base.orm } : {}),
+    ...(flags.kbee || base.kbee ? { kbee: true } : {}),
   })
   return flags.preset ? applyPreset(flags.preset, stack) : stack
 }
@@ -75,6 +77,7 @@ async function create(dir: string | undefined, flags: CreateFlags): Promise<void
       dir,
       install: flags.install,
       git: flags.git,
+      ...(flags.kbee ? { kbee: true } : {}),
       force: Boolean(flags.force),
       json: Boolean(flags.json),
       yes: Boolean(flags.yes),
@@ -90,10 +93,12 @@ async function create(dir: string | undefined, flags: CreateFlags): Promise<void
   const rel = relative(process.cwd(), result.root)
   const cd = rel && !rel.startsWith('..') ? rel : result.root
   console.log(`\nCreated ${result.root}\n\nNext steps:`)
-  for (const line of nextSteps(cd, result.manual, await readManifest(result.root))) {
+  const manifest = await readManifest(result.root)
+  for (const line of nextSteps(cd, result.manual, manifest)) {
     console.log(line ? `  ${line}` : '')
   }
-  console.log(`\n${kbeeHint()}`)
+  // With kbee the next steps already say how to build the knowledge base.
+  if (!manifest.kbee) console.log(`\n${kbeeHint()}`)
 }
 
 interface AddAppFlags {
@@ -209,6 +214,10 @@ program
   .option(
     '--preset <id>',
     'start from a preset: saas | api-platform (extra --app flags are appended)',
+  )
+  .option(
+    '--kbee',
+    'set up a kbee AI knowledge base: kb/manifest.json, AGENTS.md pointer and the kbee skills (needs git)',
   )
   .option('--no-install', 'skip pnpm install')
   .option('--no-git', 'skip git init')

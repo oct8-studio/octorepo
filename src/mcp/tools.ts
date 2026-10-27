@@ -27,6 +27,12 @@ export const createInput = {
     .describe('Preset id from list_options; its apps come first, then stack.apps'),
   install: z.boolean().default(true).describe('Run pnpm install + format (default true)'),
   git: z.boolean().default(true).describe('Run git init (default true)'),
+  kbee: z
+    .boolean()
+    .default(false)
+    .describe(
+      'Set up a kbee AI knowledge base: kb/manifest.json, AGENTS.md pointer, kbee skills (needs git; same as stack.kbee)',
+    ),
 }
 
 export const validateStackInput = StackInputSchema.extend({
@@ -63,11 +69,16 @@ export function toolHandlers(reg: Registry, cwd: string) {
       return validateStack({ ...stack, name: stack.name ?? 'app' }, reg)
     },
 
-    create: async ({ dir, stack, preset, install, git }: Infer<typeof createInput>) => {
+    create: async ({ dir, stack, preset, install, git, kbee }: Infer<typeof createInput>) => {
       // A preset alone is a complete stack, so the tool falls back to turbo (as `--preset` does).
       const monorepoTool = stack.monorepoTool ?? (preset ? 'turbo' : undefined)
       if (!monorepoTool) throw new CliError('Missing stack.monorepoTool (turbo or nx)')
-      const named = { ...stack, monorepoTool, name: stack.name ?? basename(resolve(cwd, dir)) }
+      const named = {
+        ...stack,
+        monorepoTool,
+        name: stack.name ?? basename(resolve(cwd, dir)),
+        ...(kbee ? { kbee: true } : {}),
+      }
       try {
         return await runCreate(
           {

@@ -89,6 +89,22 @@ describe('octorepo mcp server', () => {
     expect(manifest.name).toBe('demo')
   })
 
+  it('create with kbee writes kb/manifest.json; kbee without git is refused', async () => {
+    const r = await call('create', { dir: 'k', stack, install: false, git: true, kbee: true })
+    expect(r.isError).toBeFalsy()
+    expect(existsSync(join(cwd, 'k', 'kb', 'manifest.json'))).toBe(true)
+    expect(JSON.parse(await readFile(join(cwd, 'k', '.octorepo.json'), 'utf8')).kbee).toBe(true)
+    const refused = await call('create', {
+      dir: 'n',
+      stack,
+      install: false,
+      git: false,
+      kbee: true,
+    })
+    expect(refused.isError).toBe(true)
+    expect(existsSync(join(cwd, 'n'))).toBe(false)
+  })
+
   it('create resolves a relative ".." dir against the server cwd', async () => {
     const inner = join(cwd, 'inner')
     await mkdir(inner)

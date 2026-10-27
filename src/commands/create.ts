@@ -15,6 +15,8 @@ export interface CreateOptions {
   dir?: string
   install: boolean
   git: boolean
+  /** Interactive only: `--kbee` was passed, so the kbee question is skipped (answered yes). */
+  kbee?: boolean
   force: boolean
   json: boolean
   yes: boolean
@@ -30,7 +32,8 @@ export interface CreateResult {
 /** validate → generate → write → post-steps. Nothing is written if the stack has errors. */
 export async function runCreate(opts: CreateOptions, reg: Registry): Promise<CreateResult> {
   const defaultName = opts.dir ? basename(resolve(opts.cwd, opts.dir)) : undefined
-  const config = opts.config ?? (await promptForStack(reg, { defaultName }))
+  const config =
+    opts.config ?? (await promptForStack(reg, { defaultName, kbee: opts.kbee, git: opts.git }))
   const { stack, errors, warnings, fixes } = validateStack(config, reg)
   if (errors.length) {
     throw new CliError(`Invalid stack:\n${errors.map((e) => `  - ${e.message}`).join('\n')}`)

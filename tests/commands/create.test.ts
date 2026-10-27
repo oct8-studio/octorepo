@@ -163,6 +163,43 @@ describe('cli create human output', () => {
   }, 30_000)
 })
 
+describe('cli create --kbee', () => {
+  const tsx = join(process.cwd(), 'node_modules/.bin/tsx')
+  const cli = join(process.cwd(), 'src/cli.ts')
+  const args = ['create', 'x', '--tool', 'turbo', '--app', 'backend:api:express', '--no-install']
+
+  it('writes kb/, records kbee, lists the skills install as manual; JSON only', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'octo-kbee-cli-'))
+    const { stdout } = await run(tsx, [cli, ...args, '--kbee', '--json'], { cwd })
+    const out = JSON.parse(stdout)
+    expect(out.manual).toEqual(
+      expect.arrayContaining([expect.stringContaining('oct8-studio/kbee')]),
+    )
+    const kb = JSON.parse(await readFile(join(cwd, 'x/kb/manifest.json'), 'utf8'))
+    expect(kb.repos.map((r: { name: string }) => r.name)).toEqual(['types', 'api'])
+    expect(JSON.parse(await readFile(join(cwd, 'x/.octorepo.json'), 'utf8')).kbee).toBe(true)
+    expect(existsSync(join(cwd, 'x/.git'))).toBe(true)
+  }, 30_000)
+
+  it('human output ends with the first commit and /kbee init, no install hint', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'octo-kbee-cli-'))
+    const { stdout } = await run(tsx, [cli, ...args, '--kbee'], { cwd })
+    expect(stdout).toContain('git add -A && git commit -m init')
+    expect(stdout.trimEnd().endsWith('/kbee init')).toBe(true)
+    expect(stdout).not.toContain('kbee-init and treat each package')
+  }, 30_000)
+
+  it('--kbee with --no-git exits 1 and writes nothing', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'octo-kbee-cli-'))
+    const err = await run(tsx, [cli, ...args, '--kbee', '--no-git', '--json'], { cwd }).catch(
+      (e) => e,
+    )
+    expect(err.code).toBe(1)
+    expect(err.stderr).toContain('kbee needs git')
+    expect(existsSync(join(cwd, 'x'))).toBe(false)
+  }, 30_000)
+})
+
 describe('cli create', () => {
   it('prints JSON only with --json', async () => {
     const cwd = await mkdtemp(join(tmpdir(), 'octo-cli-'))
