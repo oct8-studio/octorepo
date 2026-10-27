@@ -2,6 +2,7 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { KBEE_POINTER_RE, validateKbeeManifest } from '../../scripts/kbee-manifest'
 import { runCreate } from '../../src/commands/create'
 import { generateProject } from '../../src/engine/generate'
 import {
@@ -16,39 +17,8 @@ import { defaultRegistry } from '../../src/plugins/registry'
 import { validateStack } from '../../src/rules'
 import { KBEE_RULES_VERSION } from '../../src/versions'
 
-/**
- * Port of `validateManifest` from kbee's shared/scripts/kbee-tool.mjs (oct8-studio/kbee @ b4b8343),
- * so the generated manifest is checked against kbee's own rules without a network fetch.
- */
-const NAME_RE = /^[a-z0-9][a-z0-9._-]*$/
-function validateManifest(obj: Record<string, unknown>): string[] {
-  const errors: string[] = []
-  if (obj.kbeeVersion !== 1) errors.push('kbeeVersion must be 1')
-  const rv = obj.rulesVersion
-  if (rv !== undefined && !(Number.isInteger(rv) && (rv as number) >= 1))
-    errors.push('rulesVersion must be a positive integer')
-  if (obj.mode !== undefined && obj.mode !== 'direct' && obj.mode !== 'pr') errors.push('mode')
-  if (obj.location !== undefined && obj.location !== 'in-repo' && obj.location !== 'separate')
-    errors.push('location')
-  if (!Array.isArray(obj.repos)) return [...errors, 'repos must be an array']
-  const seen = new Set<string>()
-  obj.repos.forEach((r: Record<string, unknown>, i: number) => {
-    const name = r.name as string
-    if (!name) errors.push(`repos[${i}].name is required`)
-    else if (!NAME_RE.test(name)) errors.push(`repos[${i}].name must match ${NAME_RE}`)
-    else if (seen.has(name)) errors.push(`duplicate repo name: ${name}`)
-    else seen.add(name)
-    for (const key of ['defaultBranch', 'pathHint']) {
-      if (typeof r[key] !== 'string' || !r[key]) errors.push(`repos[${i}].${key} is required`)
-    }
-    const sha = r.syncedSha as string | null
-    if (sha != null && !/^[0-9a-f]{7,40}$/.test(sha)) errors.push(`repos[${i}].syncedSha`)
-  })
-  return errors
-}
-
-/** kbee-tool's pointer-block regex (findKb step 3). */
-const POINTER_RE = /<!-- kbee:start -->[\s\S]*?kbee-kb-path:\s*(\S+)[\s\S]*?<!-- kbee:end -->/
+const validateManifest = validateKbeeManifest
+const POINTER_RE = KBEE_POINTER_RE
 
 const reg = defaultRegistry()
 const config: StackConfig = {
@@ -160,6 +130,27 @@ describe('runCreate with kbee', () => {
     const opts = { install: false, git: false, force: false, json: true, yes: true }
     await expect(runCreate({ ...opts, config, cwd, dir: 'x' }, reg)).rejects.toThrow(CliError)
     await expect(runCreate({ ...opts, config, cwd, dir: 'x' }, reg)).rejects.toThrow(/needs git/)
+  })
+})
+
+describe('validateKbeeManifest (port of kbee-tool)', () => {
+  it('reports what kbee rejects', () => {
+    expect(validateManifest([])).toEqual(['manifest must be a JSON object'])
+    const bad = {
+      kbeeVersion: 2,
+      mode: 'push',
+      repos: [
+        { name: 'Api', defaultBranch: 'main', pathHint: '../apps/api' },
+        { name: 'web', pathHint: '../apps/web', syncedSha: 'zz' },
+      ],
+    }
+    expect(validateManifest(bad)).toEqual([
+      'kbeeVersion must be 1',
+      "mode must be 'direct' or 'pr'",
+      'repos[0].name must match /^[a-z0-9][a-z0-9._-]*$/',
+      'repos[1].defaultBranch is required',
+      'repos[1].syncedSha must be a hex commit SHA or null',
+    ])
   })
 })
 

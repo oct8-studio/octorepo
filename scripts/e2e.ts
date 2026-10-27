@@ -9,21 +9,25 @@
  * With --compose it also boots docker compose and checks every service container is healthy, each
  * backend's /health (and /db/health → one seeded greeting when the stack has an ORM), every SSR
  * page's HTML and SPA CORS. A fixture may name a `preset`; it is expanded like `--preset`.
+ * A stack with `kbee` is created with git (kbee needs it) and its `kb/` is checked against kbee's
+ * manifest rules, and with the real kbee-tool when the skills install (which needs network) worked.
  * --no-docker skips the image builds (local use when no Docker engine is available; CI never passes it).
  * Lint runs after the post-install `biome check --write`, so formatting can't hide a broken template.
  */
 import { type ChildProcess, spawn } from 'node:child_process'
-import { appendFileSync, openSync } from 'node:fs'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { appendFileSync, existsSync, openSync } from 'node:fs'
+import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { runCreate } from '../src/commands/create'
+import { KBEE_SKILLS_INSTALL } from '../src/engine/kbee'
 import { parseStackConfig, type StackConfig } from '../src/model/stack'
 import { defaultRegistry } from '../src/plugins/registry'
 import { applyPreset } from '../src/presets'
 import { validateStack } from '../src/rules'
 import { findCombo } from './combos'
+import { KBEE_POINTER_RE, validateKbeeManifest } from './kbee-manifest'
 import { runsAsRoot } from './non-root'
 
 interface StepResult {
@@ -302,6 +306,37 @@ async function assertNonRoot(tag: string, root: string): Promise<void> {
   }
 }
 
+/** kb/manifest.json passes kbee's rules and AGENTS.md points at it; kbee-tool agrees if installed. */
+async function checkKbee(root: string): Promise<void> {
+  const manifest = JSON.parse(await readFile(join(root, 'kb/manifest.json'), 'utf8'))
+  const errors = validateKbeeManifest(manifest)
+  if (errors.length) throw new Error(`kb/manifest.json: ${errors.join('; ')}`)
+  for (const r of manifest.repos as { name: string; pathHint: string }[]) {
+    if (!existsSync(join(root, 'kb', r.pathHint))) throw new Error(`${r.name}: no ${r.pathHint}`)
+  }
+  const agents = await readFile(join(root, 'AGENTS.md'), 'utf8')
+  if (KBEE_POINTER_RE.exec(agents)?.[1] !== 'kb') throw new Error('AGENTS.md has no kbee pointer')
+  const installed = join(root, '.agents/skills/kbee/scripts/kbee-tool.mjs')
+  if (!existsSync(installed)) {
+    console.log('kbee-tool not installed; checked with the vendored manifest rules only')
+    return
+  }
+  if (!existsSync(join(root, '.claude/skills/kbee/SKILL.md'))) {
+    throw new Error('kbee skills missing for Claude Code (.claude/skills/kbee)')
+  }
+  // kbee-tool runs only when argv[1] is its real path (macOS tmp dirs sit behind a symlink).
+  const tool = await realpath(installed)
+  const validate = await capture('node', [tool, 'validate', 'kb'], root)
+  console.log(validate.out)
+  if (validate.code !== 0) throw new Error(`kbee-tool validate exited with ${validate.code}`)
+  const find = await capture('node', [tool, 'find'], root)
+  console.log(find.out)
+  const kbDir = JSON.parse(find.out).kbDir
+  if (!kbDir || (await realpath(kbDir)) !== (await realpath(join(root, 'kb')))) {
+    throw new Error(`kbee-tool find → ${kbDir}, want ${join(root, 'kb')}`)
+  }
+}
+
 function parseArgs(argv: string[]): {
   label: string
   load: () => Promise<StackConfig>
@@ -371,15 +406,20 @@ async function main(): Promise<number> {
           cwd: tmp,
           dir: stack.name,
           install: true,
-          git: false,
+          git: Boolean(stack.kbee),
           force: false,
           json: false,
           yes: true,
         },
         reg,
       )
-      if (result.manual.length) throw new Error(`manual steps left: ${result.manual.join(', ')}`)
+      // The kbee skills come from GitHub; without network that step is left manual (soft fail).
+      const manual = result.manual.filter((m) => !(stack.kbee && m === KBEE_SKILLS_INSTALL))
+      if (manual.length) throw new Error(`manual steps left: ${manual.join(', ')}`)
+      if (manual.length !== result.manual.length)
+        console.log('kbee skills not installed (offline?)')
     })
+    if (stack.kbee) await step('kbee kb/', () => checkKbee(root))
     if (args.dev) {
       await step('dev smoke', () => devSmoke(stack, root, join(tmp, 'dev.log')))
     }
