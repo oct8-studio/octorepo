@@ -1,11 +1,12 @@
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdtemp, readFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 import { promisify } from 'node:util'
 import { describe, expect, it } from 'vitest'
-import { nextSteps, runCreate } from '../../src/commands/create'
+import { runCreate } from '../../src/commands/create'
+import { KBEE_TIP } from '../../src/commands/report'
 import { CliError } from '../../src/model/errors'
 import type { StackConfig } from '../../src/model/stack'
 import { defaultRegistry } from '../../src/plugins/registry'
@@ -111,55 +112,121 @@ describe('cli create --app named like a service', () => {
   })
 })
 
-describe('nextSteps', () => {
-  const s = { ...config, services: ['postgres'], orm: 'prisma' as const }
-  it('lists services, migrate + seed before pnpm dev, then the full-stack alternative', () => {
-    expect(nextSteps('x', ['pnpm install'], s)).toEqual([
-      'cd x',
-      'pnpm install',
-      'docker compose up -d postgres',
-      'pnpm --filter @demo/db db:migrate && pnpm --filter @demo/db db:seed',
-      'pnpm dev',
-      '',
-      'Or run the full stack in Docker (migrations run automatically):',
-      '  docker compose up',
-    ])
-  })
-  it('is just cd and pnpm dev without services or ORM', () => {
-    expect(nextSteps('x', [], config)).toEqual(['cd x', 'pnpm dev'])
-  })
-  it('with kbee ends with the first commit, then /kbee init', () => {
-    expect(nextSteps('x', [], { ...config, kbee: true })).toEqual([
-      'cd x',
-      'pnpm dev',
-      '',
-      'Then build the kbee knowledge base:',
-      '  git add -A && git commit -m init',
-      '  In Claude Code / Codex: /kbee init',
-    ])
-  })
-})
-
 describe('cli create human output', () => {
-  it('create --preset saas prints DB steps in Next steps, then the kbee hint', async () => {
-    const tsx = join(process.cwd(), 'node_modules/.bin/tsx')
-    const cli = join(process.cwd(), 'src/cli.ts')
+  const tsx = join(process.cwd(), 'node_modules/.bin/tsx')
+  const cli = join(process.cwd(), 'src/cli.ts')
+  const saas = ['create', 'x', '--preset', 'saas', '--no-install', '--no-git']
+
+  it('create --preset saas: one summary, relative path, numbered steps, then the kbee tip', async () => {
     const cwd = await mkdtemp(join(tmpdir(), 'octo-human-'))
-    const { stdout, stderr } = await run(
-      tsx,
-      [cli, 'create', 'x', '--preset', 'saas', '--no-install', '--no-git'],
-      { cwd },
+    const { stdout, stderr } = await run(tsx, [cli, ...saas], { cwd })
+    // Auto-fixes are routine: summarised, not listed.
+    expect(stdout).not.toContain('fix:')
+    expect(stdout.startsWith('✓ x: 4 apps · turbo · drizzle · postgres, valkey, mailpit\n')).toBe(
+      true,
     )
+    expect(stdout).toContain('  ports  web 3000 · admin 3001 · api 4000 · worker 4001\n')
+    expect(stdout).toContain('\nCreated ./x\n')
+    expect(stdout).not.toContain(cwd)
+    // Not a TTY: no ANSI codes.
+    expect(stdout).not.toContain('\x1b[')
     const next = stdout.indexOf('Next steps:')
     expect(next).toBeGreaterThan(-1)
     const after = stdout.slice(next)
-    expect(after).toContain('docker compose up -d postgres valkey mailpit')
-    expect(after).toContain('pnpm --filter @x/db db:migrate && pnpm --filter @x/db db:seed')
+    expect(after).toContain('  1. cd x\n')
+    expect(after).toContain('  2. pnpm install\n')
+    expect(after).toContain(
+      '  4. Database & services:\n     docker compose up -d postgres valkey mailpit\n',
+    )
+    expect(after).toContain('     pnpm --filter @x/db db:migrate && pnpm --filter @x/db db:seed\n')
+    expect(after).toContain('  5. pnpm dev\n')
     expect(after).toContain('docker compose up\n')
     expect(after.indexOf('pnpm dev')).toBeGreaterThan(after.indexOf('db:seed'))
     expect(after.indexOf('oct8-studio/kbee')).toBeGreaterThan(after.indexOf('docker compose up\n'))
     expect(stdout.match(/oct8-studio\/kbee/g)).toHaveLength(1)
+    expect(stdout.trimEnd().endsWith(KBEE_TIP)).toBe(true)
     expect(stderr).not.toContain('kbee')
+  }, 30_000)
+
+  it('--verbose lists every auto-fix, as before', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'octo-human-'))
+    const { stdout } = await run(tsx, [cli, ...saas, '--verbose'], { cwd })
+    expect(stdout).toContain('fix: Set apiStyle of "api" to "rest"\n')
+    expect(stdout).toContain('fix: Assigned port 3000 to "web"\n')
+    expect(stdout).toContain('✓ x: 4 apps')
+  }, 30_000)
+
+  it('prints an absolute path for a target outside the cwd', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'octo-human-'))
+    const elsewhere = join(await mkdtemp(join(tmpdir(), 'octo-human-out-')), 'y')
+    const { stdout } = await run(
+      tsx,
+      [
+        cli,
+        'create',
+        elsewhere,
+        '--tool',
+        'turbo',
+        '--app',
+        'backend:api:hono',
+        '--no-install',
+        '--no-git',
+      ],
+      { cwd },
+    )
+    expect(stdout).toContain(`\nCreated ${elsewhere}\n`)
+    expect(stdout).toContain(`  1. cd ${elsewhere}\n`)
+  }, 30_000)
+
+  it('add app and add service: one ✓ line, then numbered next steps', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'octo-human-'))
+    await run(tsx, [cli, ...saas, '--json'], { cwd })
+    const repo = join(cwd, 'x')
+    const app = await run(
+      tsx,
+      [cli, 'add', 'app', 'frontend', 'store', 'nuxt', '--uses', 'api', '--no-install'],
+      { cwd: repo },
+    )
+    expect(app.stdout).toMatch(/^✓ Added frontend store \(nuxt\) · port 3002 · \d+ files\n/)
+    expect(app.stdout).not.toContain('fix:')
+    expect(app.stdout).toContain(
+      'Next steps:\n  1. pnpm install\n  2. pnpm exec biome check --write .\n  3. pnpm dev\n',
+    )
+    const svc = await run(tsx, [cli, 'add', 'service', 'redis'], { cwd: repo })
+    expect(svc.stdout).toMatch(/^✓ Added service redis \(Redis\) · \d+ files\n/)
+    expect(svc.stdout).toContain('Next steps:\n  1. docker compose up -d redis\n')
+    const again = await run(tsx, [cli, 'add', 'service', 'redis'], { cwd: repo })
+    expect(again.stdout).toBe('Service "redis" is already in this repo; nothing changed\n')
+  }, 60_000)
+
+  it('Ctrl-C during a post-step prints Cancelled. and exits 0', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'octo-sigint-'))
+    // A pnpm that hangs, so the CLI is mid-install when interrupted.
+    await mkdir(join(cwd, 'bin'))
+    await writeFile(join(cwd, 'bin/pnpm'), '#!/bin/sh\nsleep 20\n', { mode: 0o755 })
+    const child = spawn(
+      tsx,
+      [cli, 'create', 'x', '--tool', 'turbo', '--app', 'backend:api:hono', '--no-git'],
+      { cwd, env: { ...process.env, PATH: `${join(cwd, 'bin')}${delimiter}${process.env.PATH}` } },
+    )
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', (d) => {
+      stdout += d
+    })
+    child.stderr.on('data', (d) => {
+      stderr += d
+    })
+    // The manifest is written just before the post-steps start.
+    for (let i = 0; i < 200 && !existsSync(join(cwd, 'x/.octorepo.json')); i++) {
+      await new Promise((r) => setTimeout(r, 100))
+    }
+    await new Promise((r) => setTimeout(r, 300))
+    child.kill('SIGINT')
+    const code = await new Promise((r) => child.on('close', r))
+    expect(code).toBe(0)
+    expect(stdout.trim()).toBe('Cancelled.')
+    expect(stderr).not.toMatch(/error|at /i)
   }, 30_000)
 })
 

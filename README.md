@@ -63,7 +63,7 @@ Or describe the stack in JSON and pass `--config stack.json`:
 }
 ```
 
-Other `create` flags: `--orm drizzle|prisma` (see [Database](#database-orm)), `--preset <id>` (see [Presets](#presets)), `--kbee` (see [kbee](#kbee-a-knowledge-base-for-your-agents)), `--no-install`, `--no-git`, `--force`, `--json` (machine-readable result), `--yes`.
+Other `create` flags: `--orm drizzle|prisma` (see [Database](#database-orm)), `--preset <id>` (see [Presets](#presets)), `--kbee` (see [kbee](#kbee-a-knowledge-base-for-your-agents)), `--no-install`, `--no-git`, `--force`, `--json` (machine-readable result), `--yes`, `--verbose` (list every auto-fix: assigned ports, API styles, required services; `add app` and `add service` take it too).
 
 ## Presets
 

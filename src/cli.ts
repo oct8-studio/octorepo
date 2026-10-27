@@ -1,14 +1,20 @@
 import { readFile } from 'node:fs/promises'
-import { basename, relative, resolve } from 'node:path'
+import { basename, resolve } from 'node:path'
 import { select, text } from '@clack/prompts'
 import { Command } from 'commander'
 import { readManifest, runAddApp } from './commands/add-app'
 import { runAddService } from './commands/add-service'
-import { nextSteps, runCreate } from './commands/create'
+import { runCreate } from './commands/create'
 import { parseAppFlag, parseUses } from './commands/flags'
 import { formatOptions, listOptions } from './commands/options'
 import { answer, appNameValidator } from './commands/prompts'
-import { kbeeHint } from './engine/agents'
+import {
+  addAppReport,
+  addServiceReport,
+  colorEnabled,
+  createReport,
+  type Style,
+} from './commands/report'
 import { CLI_NAME, CLI_VERSION } from './meta'
 import { CliError, formatError } from './model/errors'
 import { type AppKind, type AppSpec, parseStackConfig, type StackConfig } from './model/stack'
@@ -28,9 +34,29 @@ interface CreateFlags {
   force?: boolean
   json?: boolean
   yes?: boolean
+  verbose?: boolean
 }
 
 const collect = (value: string, prev: string[]) => [...prev, value]
+
+const style = (flags: { verbose?: boolean }): Style => ({
+  color: colorEnabled(),
+  verbose: Boolean(flags.verbose),
+})
+
+const print = (lines: string[]) => process.stdout.write(`${lines.join('\n')}\n`)
+
+/**
+ * Ctrl-C outside a prompt (prompts report their own cancel) ends a human run quietly with
+ * code 0, so npm/pnpm exec don't add a "command failed" error. `--json` runs keep the default.
+ */
+function quietCtrlC(flags: { json?: boolean }): void {
+  if (flags.json) return
+  process.once('SIGINT', () => {
+    process.stdout.write('\nCancelled.\n')
+    process.exit(0)
+  })
+}
 
 async function stackFromFlags(dir: string | undefined, flags: CreateFlags): Promise<StackConfig> {
   let base: Partial<StackConfig> = {}
@@ -57,6 +83,7 @@ async function stackFromFlags(dir: string | undefined, flags: CreateFlags): Prom
 }
 
 async function create(dir: string | undefined, flags: CreateFlags): Promise<void> {
+  quietCtrlC(flags)
   const hasStackFlags = Boolean(
     flags.config ||
       flags.tool ||
@@ -88,17 +115,12 @@ async function create(dir: string | undefined, flags: CreateFlags): Promise<void
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
     return
   }
-  for (const f of result.fixes) console.log(`fix: ${f.message}`)
-  for (const w of result.warnings) console.log(`warning: ${w.message}`)
-  const rel = relative(process.cwd(), result.root)
-  const cd = rel && !rel.startsWith('..') ? rel : result.root
-  console.log(`\nCreated ${result.root}\n\nNext steps:`)
-  const manifest = await readManifest(result.root)
-  for (const line of nextSteps(cd, result.manual, manifest)) {
-    console.log(line ? `  ${line}` : '')
-  }
-  // With kbee the next steps already say how to build the knowledge base.
-  if (!manifest.kbee) console.log(`\n${kbeeHint()}`)
+  print(
+    createReport(
+      { ...result, cwd: process.cwd(), stack: await readManifest(result.root) },
+      style(flags),
+    ),
+  )
 }
 
 interface AddAppFlags {
@@ -106,6 +128,7 @@ interface AddAppFlags {
   apiStyle?: string
   install: boolean
   json?: boolean
+  verbose?: boolean
 }
 
 async function addApp(
@@ -114,6 +137,7 @@ async function addApp(
   frameworkArg: string | undefined,
   flags: AddAppFlags,
 ): Promise<void> {
+  quietCtrlC(flags)
   const reg = defaultRegistry()
   const interactive = Boolean(process.stdin.isTTY) && !flags.json
   if ((!kindArg || !nameArg || !frameworkArg) && !interactive) {
@@ -167,16 +191,16 @@ async function addApp(
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
     return
   }
-  for (const f of result.fixes) console.log(`fix: ${f.message}`)
-  for (const w of result.warnings) console.log(`warning: ${w.message}`)
-  console.log(`\nAdded ${kind} "${name}" (${result.written.length} files written)`)
-  for (const cmd of result.manual ?? []) console.log(`  ${cmd}`)
+  // The manifest has the app as validated, port included.
+  const added = (await readManifest(process.cwd())).apps.find((a) => a.name === name) ?? app
+  print(addAppReport({ ...result, app: added, written: result.written.length }, style(flags)))
 }
 
 async function addService(
   serviceArg: string | undefined,
-  flags: { json?: boolean },
+  flags: { json?: boolean; verbose?: boolean },
 ): Promise<void> {
+  quietCtrlC(flags)
   const reg = defaultRegistry()
   const interactive = Boolean(process.stdin.isTTY) && !flags.json
   if (!serviceArg && !interactive) throw new CliError('Usage: add service <name>')
@@ -196,9 +220,17 @@ async function addService(
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
     return
   }
-  for (const f of result.fixes) console.log(`fix: ${f.message}`)
-  for (const w of result.warnings) console.log(`warning: ${w.message}`)
-  console.log(`\n${result.message} (${result.written.length} files written)`)
+  print(
+    addServiceReport(
+      {
+        ...result,
+        service,
+        label: reg.service(service)?.label,
+        written: result.written.length,
+      },
+      style(flags),
+    ),
+  )
 }
 
 const program = new Command()
@@ -224,6 +256,7 @@ program
   .option('--force', 'write into a non-empty directory')
   .option('--json', 'print machine-readable result only')
   .option('--yes', 'never prompt')
+  .option('--verbose', 'also list every auto-fix (ports, API styles, required services)')
   .action(create)
 
 const add = program.command('add').description('Add to an existing monorepo')
@@ -234,11 +267,13 @@ add
   .option('--api-style <style>', 'backend API style (e.g. rest)')
   .option('--no-install', 'skip pnpm install')
   .option('--json', 'print machine-readable result only')
+  .option('--verbose', 'also list every auto-fix')
   .action(addApp)
 add
   .command('service [name]')
   .description('Add a docker compose service: add service <name>')
   .option('--json', 'print machine-readable result only')
+  .option('--verbose', 'also list every auto-fix')
   .action(addService)
 
 program
