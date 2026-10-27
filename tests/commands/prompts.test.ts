@@ -116,7 +116,7 @@ describe('promptForStack', () => {
     const err = await promptForStack(defaultRegistry()).catch((e) => e)
     expect(err).toBeInstanceOf(CancelledError)
     expect(clack.cancel).toHaveBeenCalledTimes(1)
-    expect(formatError(err, false)).toEqual({ text: '', exitCode: 1 })
+    expect(formatError(err, false)).toEqual({ text: '', exitCode: 0 })
   })
 })
 

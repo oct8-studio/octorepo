@@ -21,6 +21,12 @@ All notable changes to octorepo are documented here. The format follows
 
 ### Changed
 
+- Calmer human output for `create`, `add app` and `add service`: auto-fixes (assigned ports, API
+  styles, a required postgres) are summarised in one line plus a ports row instead of a `fix:` line
+  each (`--verbose` lists them); warnings stay visible (yellow on a terminal, not with `NO_COLOR`);
+  the target is shown relative to the current directory; next steps are numbered with database &
+  services grouped; the kbee hint is a one-line tip. `--json` output is unchanged.
+- Cancelling a prompt or pressing Ctrl-C prints `Cancelled.` and exits 0 (was exit code 1).
 - Generated `biome.json` skips `.agents/skills`, `.claude/skills` and `skills-lock.json`, so
   installed agent skills don't fail `pnpm lint` (`add` adds the exclusions to older repos).
 
