@@ -151,7 +151,7 @@ ${
   manifest.kbee
     ? `\`AGENTS.md\` (and \`CLAUDE.md\`, which imports it) describes this repo for coding agents. A
 [kbee](https://github.com/oct8-studio/kbee) knowledge base lives in \`kb/\`: commit the repo, then
-run \`/kbee audit\` in Claude Code or Codex to build it.`
+run \`/kbee init\` in Claude Code or Codex to build it.`
     : kbeeHint()
 }
 `

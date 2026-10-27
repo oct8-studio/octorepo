@@ -62,7 +62,7 @@ const config: StackConfig = {
 }
 
 describe('kbee manifest', () => {
-  it('lists backends, frontends, types, then db; paths relative to kb/', () => {
+  it('lists producers first: types, db, backends, then frontends; paths relative to kb/', () => {
     const m = kbeeManifest(config)
     expect(m).toMatchObject({
       kbeeVersion: 1,
@@ -71,12 +71,12 @@ describe('kbee manifest', () => {
       rulesVersion: KBEE_RULES_VERSION,
     })
     expect(m.repos.map((r) => [r.name, r.pathHint])).toEqual([
+      ['types', '../packages/types'],
+      ['db', '../packages/db'],
       ['api', '../apps/api'],
       ['core', '../apps/core'],
       ['web', '../apps/web'],
       ['admin', '../apps/admin'],
-      ['types', '../packages/types'],
-      ['db', '../packages/db'],
     ])
     for (const r of m.repos) {
       expect(r).toMatchObject({ defaultBranch: 'main', syncedSha: null, syncedAt: null })
@@ -90,7 +90,7 @@ describe('kbee manifest', () => {
 
   it('no db entry without an ORM, and no client or service entries', () => {
     const names = kbeeManifest({ apps: config.apps }).repos.map((r) => r.name)
-    expect(names).toEqual(['api', 'core', 'web', 'admin', 'types'])
+    expect(names).toEqual(['types', 'api', 'core', 'web', 'admin'])
   })
 
   it('kb/ holds only the manifest, the local-override ignore and features/', () => {
@@ -126,12 +126,12 @@ describe('generateProject with kbee', () => {
   it('AGENTS.md carries the kbee pointer and contract hints instead of the install hint', () => {
     const agents = tree['AGENTS.md'] as string
     expect(POINTER_RE.exec(agents)?.[1]).toBe('kb')
-    expect(agents).toContain('/kbee audit')
+    expect(agents).toContain('/kbee init')
     expect(agents).toContain('consumed through `packages/core-client`')
     expect(agents).not.toContain('npx skills add')
     const inner = agents.slice(agents.indexOf('<!-- octorepo:begin -->'))
     expect(inner.indexOf('<!-- kbee:end -->')).toBeLessThan(inner.indexOf('<!-- octorepo:end -->'))
-    expect(tree['README.md']).toContain('/kbee audit')
+    expect(tree['README.md']).toContain('/kbee init')
   })
 
   it('without kbee: no kb/, the install hint stays', () => {
