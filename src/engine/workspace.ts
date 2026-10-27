@@ -76,6 +76,10 @@ export const BIOME_INCLUDES = [
   '!**/node_modules',
   '!**/openapi.json',
   '!**/*.d.ts',
+  // Agent skills installed by `npx skills add` (e.g. kbee) keep their own formatting.
+  '!.agents/skills',
+  '!.claude/skills',
+  '!skills-lock.json',
 ]
 
 function tsconfigs(): FileTree {
@@ -143,7 +147,13 @@ Requires Node 24 and pnpm.
 ${databaseSection(manifest, 2)}
 ## AI agents
 
-${kbeeHint()}
+${
+  manifest.kbee
+    ? `\`AGENTS.md\` (and \`CLAUDE.md\`, which imports it) describes this repo for coding agents. A
+[kbee](https://github.com/oct8-studio/kbee) knowledge base lives in \`kb/\`: commit the repo, then
+run \`/kbee audit\` in Claude Code or Codex to build it.`
+    : kbeeHint()
+}
 `
 }
 

@@ -7,6 +7,7 @@ import type { AppContext, FileTree, ProjectContext, ResolvedApp, UiFamily } from
 import { VERSIONS } from '../versions'
 import { restClientFiles } from './client'
 import { composeFiles, serviceEnv } from './compose'
+import { kbeeFiles } from './kbee'
 import { mergeTrees } from './tree'
 import { workspaceFiles } from './workspace'
 
@@ -83,6 +84,6 @@ export function generateProject(stack: StackConfig, reg: Registry): FileTree {
     if (orm.allowBuilds?.length) trees.push(allowBuilds(mergeTrees(...trees), orm.allowBuilds))
   }
 
-  trees.push(composeFiles(ctx, reg))
+  trees.push(composeFiles(ctx, reg), kbeeFiles(stack))
   return mergeTrees(...trees)
 }

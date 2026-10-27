@@ -24,6 +24,8 @@ export interface StackConfig {
   orm?: OrmId
   /** Preset the stack started from (informational; the apps are already expanded). */
   preset?: string
+  /** Set up an in-repo kbee knowledge base (`kb/manifest.json`) and the kbee skills. */
+  kbee?: boolean
 }
 
 export interface Manifest extends StackConfig {
@@ -50,6 +52,7 @@ export const StackConfigSchema = z.object({
   services: z.array(z.string()).default([]),
   orm: z.enum(['drizzle', 'prisma']).optional(),
   preset: z.string().optional(),
+  kbee: z.boolean().optional(),
 })
 
 /**

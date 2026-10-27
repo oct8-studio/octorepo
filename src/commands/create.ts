@@ -35,6 +35,11 @@ export async function runCreate(opts: CreateOptions, reg: Registry): Promise<Cre
   if (errors.length) {
     throw new CliError(`Invalid stack:\n${errors.map((e) => `  - ${e.message}`).join('\n')}`)
   }
+  if (stack.kbee && !opts.git) {
+    throw new CliError(
+      "kbee needs git: its in-repo knowledge base cites the repo's own history. Drop --no-git or --kbee.",
+    )
+  }
   const root = resolve(opts.cwd, opts.dir ?? stack.name)
   await writeTree(root, generateProject(stack, reg), { mode: 'create', force: opts.force })
   const manual = await runPostSteps(root, { install: opts.install, git: opts.git })
