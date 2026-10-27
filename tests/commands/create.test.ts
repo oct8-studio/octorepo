@@ -128,6 +128,16 @@ describe('nextSteps', () => {
   it('is just cd and pnpm dev without services or ORM', () => {
     expect(nextSteps('x', [], config)).toEqual(['cd x', 'pnpm dev'])
   })
+  it('with kbee ends with the first commit, then /kbee init', () => {
+    expect(nextSteps('x', [], { ...config, kbee: true })).toEqual([
+      'cd x',
+      'pnpm dev',
+      '',
+      'Then build the kbee knowledge base:',
+      '  git add -A && git commit -m init',
+      '  In Claude Code / Codex: /kbee init',
+    ])
+  })
 })
 
 describe('cli create human output', () => {

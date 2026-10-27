@@ -42,12 +42,25 @@ export async function runCreate(opts: CreateOptions, reg: Registry): Promise<Cre
   }
   const root = resolve(opts.cwd, opts.dir ?? stack.name)
   await writeTree(root, generateProject(stack, reg), { mode: 'create', force: opts.force })
-  const manual = await runPostSteps(root, { install: opts.install, git: opts.git })
+  const manual = await runPostSteps(root, {
+    install: opts.install,
+    git: opts.git,
+    kbee: Boolean(stack.kbee),
+  })
   // Prints nothing itself: the CLI renders next steps and hints, so --json/MCP output stays pure.
   return { root, warnings, fixes, manual }
 }
 
-/** Human next steps after create: cd, pending post-steps, services + database, then dev. */
+/** Commit first: kbee's in-repo citations point at the code committed alongside the KB. */
+export const KBEE_NEXT_STEPS = [
+  'git add -A && git commit -m init',
+  'In Claude Code / Codex: /kbee init',
+]
+
+/**
+ * Human next steps after create: cd, pending post-steps, services + database, then dev; with kbee,
+ * the first commit and `/kbee init`.
+ */
 export function nextSteps(cd: string, manual: string[], stack: StackConfig): string[] {
   const [up, ...rest] = databaseSteps(stack)
   const full = rest.pop()
@@ -62,6 +75,9 @@ export function nextSteps(cd: string, manual: string[], stack: StackConfig): str
           `Or run the full stack in Docker${stack.orm ? ' (migrations run automatically)' : ''}:`,
           `  ${full.cmd}`,
         ]
+      : []),
+    ...(stack.kbee
+      ? ['', 'Then build the kbee knowledge base:', ...KBEE_NEXT_STEPS.map((s) => `  ${s}`)]
       : []),
   ]
 }
