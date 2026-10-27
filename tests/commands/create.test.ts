@@ -179,6 +179,8 @@ describe('cli create --kbee', () => {
     expect(kb.repos.map((r: { name: string }) => r.name)).toEqual(['types', 'api'])
     expect(JSON.parse(await readFile(join(cwd, 'x/.octorepo.json'), 'utf8')).kbee).toBe(true)
     expect(existsSync(join(cwd, 'x/.git'))).toBe(true)
+    const head = await readFile(join(cwd, 'x/.git/HEAD'), 'utf8')
+    expect(head.trim()).toBe('ref: refs/heads/main')
   }, 30_000)
 
   it('human output ends with the first commit and /kbee init, no install hint', async () => {

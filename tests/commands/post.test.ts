@@ -74,7 +74,7 @@ describe('runPostSteps', () => {
       'pnpm install',
       BIOME,
       KBEE_SKILLS_INSTALL,
-      'git init',
+      'git init -b main',
     ])
     process.env.PATH = await fakeNpx(0)
     await expect(runPostSteps(root, { install: false, git: false, kbee: true })).resolves.toEqual([

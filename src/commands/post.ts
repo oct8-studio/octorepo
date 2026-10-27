@@ -8,6 +8,7 @@ const INSTALL = 'pnpm install'
 /** Generated imports can't match every scope's sort order, so format once after install (R14). */
 const FORMAT = 'pnpm exec biome check --write .'
 const GIT_INIT = 'git init'
+const GIT_INIT_MAIN = 'git init -b main'
 
 function onPath(cmd: string): boolean {
   const exts = process.platform === 'win32' ? ['.cmd', '.exe', ''] : ['']
@@ -69,8 +70,11 @@ export async function runPostSteps(
     if (!ok) manual.push(KBEE_SKILLS_INSTALL)
   }
   if (opts.git) {
-    const ok = onPath('git') && (await exec('git', ['init', '--quiet'], root)) === 0
-    if (!ok) manual.push(GIT_INIT)
+    // kbee's manifest and the generated CI name `main`, so a kbee repo starts on it whatever
+    // init.defaultBranch says.
+    const args = opts.kbee ? ['init', '--quiet', '--initial-branch=main'] : ['init', '--quiet']
+    const ok = onPath('git') && (await exec('git', args, root)) === 0
+    if (!ok) manual.push(opts.kbee ? GIT_INIT_MAIN : GIT_INIT)
   }
   return manual
 }

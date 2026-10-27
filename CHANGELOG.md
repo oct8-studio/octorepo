@@ -13,7 +13,8 @@ All notable changes to octorepo are documented here. The format follows
   the kbee skills for Claude Code and Codex (`npx skills add oct8-studio/kbee`, a manual step when
   offline or with `--no-install`), and a kbee pointer plus contract hints in `AGENTS.md`. Next
   steps end with the first commit and `/kbee init`. Also an interactive question (default no), the
-  MCP `create` input `kbee`, and `kbee: true` in `.octorepo.json`. Needs git.
+  MCP `create` input `kbee`, and `kbee: true` in `.octorepo.json`. Needs git; the repo starts on
+  `main` (the branch the manifest and the generated CI name).
 - `add app` appends the new app's entry to `kb/manifest.json` in repos with kbee; existing entries
   are never changed or removed.
 - `options` lists `integrations` (`kbee`).
