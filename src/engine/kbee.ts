@@ -130,3 +130,26 @@ To build the knowledge base, commit the repo, then run \`/kbee init\` in Claude 
 ${kbeeContractHints(stack).join('\n')}
 `
 }
+
+/**
+ * Adds the generated entries missing from the on-disk manifest (matched by name), appended after
+ * the existing ones. Existing entries, their order and every other key are kept as they are;
+ * nothing is removed. New entries use the default branch of the existing ones. Returns undefined
+ * when nothing is missing; throws when `disk` is not a JSON object.
+ */
+export function mergeKbeeManifest(
+  disk: string,
+  stack: Pick<StackConfig, 'apps' | 'orm'>,
+): string | undefined {
+  const current: unknown = JSON.parse(disk)
+  if (!current || typeof current !== 'object' || Array.isArray(current)) {
+    throw new Error(`${KBEE_MANIFEST} is not a JSON object`)
+  }
+  const obj = current as Record<string, unknown>
+  const repos = Array.isArray(obj.repos) ? (obj.repos as Partial<KbeeRepo>[]) : []
+  const names = new Set(repos.map((r) => r?.name))
+  const branch = repos.find((r) => typeof r?.defaultBranch === 'string')?.defaultBranch
+  const missing = kbeeRepos(stack, branch).filter((r) => !names.has(r.name))
+  if (missing.length === 0) return undefined
+  return json({ ...obj, repos: [...repos, ...missing] })
+}

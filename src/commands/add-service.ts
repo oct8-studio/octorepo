@@ -86,6 +86,7 @@ export async function runAddService(
     services: [...current.services, opts.service],
     ...(current.orm ? { orm: current.orm } : {}),
     ...(current.preset ? { preset: current.preset } : {}),
+    ...(current.kbee ? { kbee: true } : {}),
   }
   const { stack, errors, warnings, fixes } = validateStack(config, reg)
   if (errors.length) {

@@ -4,7 +4,12 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { runCreate } from '../../src/commands/create'
 import { generateProject } from '../../src/engine/generate'
-import { kbeeContractHints, kbeeFiles, kbeeManifest } from '../../src/engine/kbee'
+import {
+  kbeeContractHints,
+  kbeeFiles,
+  kbeeManifest,
+  mergeKbeeManifest,
+} from '../../src/engine/kbee'
 import { CliError } from '../../src/model/errors'
 import type { StackConfig } from '../../src/model/stack'
 import { defaultRegistry } from '../../src/plugins/registry'
@@ -155,5 +160,21 @@ describe('runCreate with kbee', () => {
     const opts = { install: false, git: false, force: false, json: true, yes: true }
     await expect(runCreate({ ...opts, config, cwd, dir: 'x' }, reg)).rejects.toThrow(CliError)
     await expect(runCreate({ ...opts, config, cwd, dir: 'x' }, reg)).rejects.toThrow(/needs git/)
+  })
+})
+
+describe('mergeKbeeManifest', () => {
+  const disk = `${JSON.stringify(kbeeManifest(config), null, 2)}\n`
+  it('is a no-op when every entry exists', () => {
+    expect(mergeKbeeManifest(disk, config)).toBeUndefined()
+  })
+  it('adds a missing db entry and keeps the result valid for kbee', () => {
+    const noDb = `${JSON.stringify(kbeeManifest({ apps: config.apps }))}`
+    const out = JSON.parse(mergeKbeeManifest(noDb, config) as string)
+    expect(out.repos.at(-1)).toMatchObject({ name: 'db', pathHint: '../packages/db' })
+    expect(validateManifest(out)).toEqual([])
+  })
+  it('throws on a non-object manifest', () => {
+    expect(() => mergeKbeeManifest('[]', config)).toThrow(/not a JSON object/)
   })
 })
